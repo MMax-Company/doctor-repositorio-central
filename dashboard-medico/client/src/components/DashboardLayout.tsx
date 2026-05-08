@@ -159,8 +159,17 @@ function DashboardLayoutContent({
           className="border-r-0"
           disableTransition={isResizing}
         >
-          <SidebarHeader className="h-16 justify-center">
+          <SidebarHeader className="h-16 justify-center border-b border-border">
             <div className="flex items-center gap-3 px-2 transition-all w-full">
+              {!isCollapsed ? (
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <img src="/doctor-prescreve-logo.png" alt="Doctor Prescreve" className="h-10 w-auto" />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center w-full">
+                  <img src="/doctor-prescreve-logo.png" alt="Doctor Prescreve" className="h-8 w-auto" />
+                </div>
+              )}
               <button
                 onClick={toggleSidebar}
                 className="h-8 w-8 flex items-center justify-center hover:bg-accent rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
@@ -168,13 +177,6 @@ function DashboardLayoutContent({
               >
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
-              {!isCollapsed ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-semibold tracking-tight truncate">
-                    Navigation
-                  </span>
-                </div>
-              ) : null}
             </div>
           </SidebarHeader>
 

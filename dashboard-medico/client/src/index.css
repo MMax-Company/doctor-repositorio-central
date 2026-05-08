@@ -43,60 +43,56 @@
 }
 
 :root {
-  /* Doctor Prescreve - Paleta Azul Médica Profissional */
-  --primary: oklch(0.52 0.2 264);        /* Azul médico principal */
-  --primary-foreground: oklch(1 0 0);
-  --sidebar-primary: oklch(0.55 0.2 264);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --chart-1: oklch(0.65 0.15 264);
-  --chart-2: oklch(0.58 0.18 264);
-  --chart-3: oklch(0.52 0.2 264);
-  --chart-4: oklch(0.48 0.22 264);
-  --chart-5: oklch(0.44 0.24 264);
+  /* Doctor Prescreve - Paleta Azul Premium #003EBA */
+  --primary: #003EBA;                    /* Azul Royal Premium Principal */
+  --primary-foreground: #FFFFFF;
+  --sidebar-primary: #003EBA;
+  --sidebar-primary-foreground: #FFFFFF;
+  --chart-1: #0052E0;
+  --chart-2: #003EBA;
+  --chart-3: #002E8A;
+  --chart-4: #001F5A;
+  --chart-5: #00142A;
   --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
-  --secondary: oklch(0.6 0.18 264);
-  --secondary-foreground: oklch(0.235 0.015 65);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.65 0.2 280);        /* Roxo/Azul para destaques */
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.52 0.2 264);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.65 0.2 280);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.52 0.2 264);
+  --background: #FFFFFF;
+  --foreground: #1A1A1A;
+  --card: #FFFFFF;
+  --card-foreground: #1A1A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
+  --secondary: #D4AF37;                  /* Dourado Sofisticado */
+  --secondary-foreground: #003EBA;
+  --muted: #F5F7FA;
+  --muted-foreground: #7A8A99;
+  --accent: #D4AF37;                     /* Dourado para destaques */
+  --accent-foreground: #003EBA;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E0E8F0;
+  --input: #F5F7FA;
+  --ring: #003EBA;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #1A1A1A;
+  --sidebar-accent: #D4AF37;
+  --sidebar-accent-foreground: #003EBA;
+  --sidebar-border: #E0E8F0;
+  --sidebar-ring: #003EBA;
 }
 
 .dark {
-  /* Doctor Prescreve - Paleta Azul Médica Profissional (Modo Escuro) */
-  --primary: oklch(0.58 0.2 264);
-  --primary-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.62 0.18 264);
-  --sidebar-primary-foreground: oklch(0.141 0.005 285.823);
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.85 0.005 65);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.85 0.005 65);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.85 0.005 65);
-  --secondary: oklch(0.65 0.18 264);
-  --secondary-foreground: oklch(0.85 0.005 65);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.7 0.2 280);
-  --accent-foreground: oklch(0.141 0.005 285.823);
+  /* Doctor Prescreve - Paleta Azul Premium #003EBA (Modo Escuro) */
+  --primary: #0052E0;
+  --primary-foreground: #FFFFFF;
+  --sidebar-primary: #0052E0;
+  --sidebar-primary-foreground: #FFFFFF;
+  --background: #0F1419;
+  --foreground: #E8EAED;
+  --card: #1A1F2E;
+  --card-foreground: #E8EAED;
+  --popover: #1A1F2E;
+  --popover-foreground: #E8EAED;
+  --secondary: #D4AF37;
+  --secondary-foreground: #0052E0;
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(1 0 0 / 10%);

@@ -51,10 +51,10 @@ export default function Home() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1e3a8a] to-[#3b82f6] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#003EBA] to-[#0052E0] flex items-center justify-center">
         <div className="text-center text-white">
           <h1 className="text-4xl font-bold mb-4">Doctor Prescreve</h1>
-          <p className="text-xl mb-8">Painel Médico</p>
+          <p className="text-xl mb-8">Painel Médico Premium</p>
           <Button size="lg" variant="secondary">
             Fazer Login
           </Button>
@@ -64,18 +64,12 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-white">
       {/* Header com identidade Doctor Prescreve */}
-      <header className="bg-gradient-to-r from-[#1e3a8a] to-[#2563eb] text-white shadow-lg">
+      <header className="bg-gradient-to-r from-[#003EBA] to-[#0052E0] text-white shadow-lg border-b-4 border-[#D4AF37]">
         <div className="container mx-auto px-4 py-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-              <span className="text-[#1e3a8a] font-bold text-lg">Rx</span>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Doctor Prescreve</h1>
-              <p className="text-sm text-blue-100">Painel Médico</p>
-            </div>
+            <img src="/doctor-prescreve-logo.png" alt="Doctor Prescreve" className="h-10 w-auto" />
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm">Bem-vindo, {user?.name || "Médico"}</span>
