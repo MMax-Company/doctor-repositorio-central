@@ -1,288 +1,257 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Users,
-  Activity,
+  Shield,
   Clock,
+  Heart,
   CheckCircle,
-  AlertCircle,
-  FileText,
-  LogOut,
+  MessageCircle,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import { trpc } from "@/lib/trpc";
-import { useLocation } from "wouter";
 import { useState } from "react";
 
 export default function Home() {
-  const { user, isAuthenticated, logout } = useAuth();
-  const [, setLocation] = useLocation();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
-  const logoutMutation = trpc.auth.logout.useMutation();
+  const features = [
+    {
+      icon: Users,
+      title: "Médicos Habilitados",
+      description: "CRM ativo verificado",
+    },
+    {
+      icon: Shield,
+      title: "Dados Protegidos",
+      description: "Criptografia AES-256",
+    },
+    {
+      icon: Clock,
+      title: "Atendimento Rápido",
+      description: "Resposta em até 24h",
+    },
+    {
+      icon: Heart,
+      title: "Cuidado Contínuo",
+      description: "Acompanhamento médico",
+    },
+  ];
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await logoutMutation.mutateAsync();
-      logout();
-      setLocation("/");
-    } catch (error) {
-      console.error("Erro ao fazer logout:", error);
-      setIsLoggingOut(false);
-    }
+  const slides = [
+    {
+      number: 1,
+      title: "Solicite seu atendimento",
+      description: "Preencha um formulário rápido com seus dados básicos",
+    },
+    {
+      number: 2,
+      title: "Avaliação médica",
+      description: "Um médico habilitado avalia seu caso em até 24h",
+    },
+    {
+      number: 3,
+      title: "Receita digital",
+      description: "Receba sua receita de forma segura e rápida",
+    },
+  ];
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
   };
 
-  // Queries
-  const filaQuery = trpc.atendimentos.obterFila.useQuery(undefined, {
-    enabled: isAuthenticated,
-  });
-
-  const estatisticasQuery = trpc.atendimentos.obterEstatisticas.useQuery(
-    undefined,
-    { enabled: isAuthenticated }
-  );
-
-  const tempoMedioQuery = trpc.atendimentos.obterTempoMedioEspera.useQuery(
-    undefined,
-    { enabled: isAuthenticated }
-  );
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#003EBA] to-[#0052E0] flex items-center justify-center">
-        <div className="text-center text-white">
-          <h1 className="text-4xl font-bold mb-4">Doctor Prescreve</h1>
-          <p className="text-xl mb-8">Painel Médico Premium</p>
-          <Button size="lg" variant="secondary">
-            Fazer Login
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  };
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header com identidade Doctor Prescreve */}
-      <header className="bg-gradient-to-r from-[#003EBA] to-[#0052E0] text-white shadow-lg border-b-4 border-[#D4AF37]">
-        <div className="container mx-auto px-4 py-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/doctor-prescreve-logo.png" alt="Doctor Prescreve" className="h-10 w-auto" />
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white text-slate-900">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 leading-none">Dr.</p>
+              <p className="text-lg font-bold text-gray-900 leading-none">Prescreve</p>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm">Bem-vindo, {user?.name || "Médico"}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="text-white hover:bg-white/20"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
-            </Button>
-          </div>
+
+          <Button
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-full px-6 font-semibold shadow-lg transition-all"
+            size="sm"
+          >
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Solicitar Atendimento
+          </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Título da seção */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h2>
-          <p className="text-gray-600">
-            Gerenciamento de atendimentos em tempo real
+      <main className="container mx-auto px-4 py-8 space-y-12">
+        <div className="flex justify-center">
+          <Badge className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium border-none">
+            <CheckCircle className="w-4 h-4 mr-2" />
+            Médicos com CRM ativo
+          </Badge>
+        </div>
+
+        {/* Hero Section */}
+        <section className="text-center space-y-6 py-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
+            Renovação de receitas{" "}
+            <span className="text-blue-600">sem burocracia</span>
+          </h1>
+
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            Avaliação médica assíncrona, rápida e segura. Mantenha seu
+            tratamento em dia com praticidade e responsabilidade médica.
           </p>
-        </div>
 
-        {/* Grid de Métricas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Card 1: Total de Atendimentos */}
-          <Card className="bg-white border-0 shadow-md hover:shadow-lg transition-shadow">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-50 rounded-lg flex items-center justify-center">
-                  <Users className="w-6 h-6 text-[#1e3a8a]" />
-                </div>
-                <span className="text-xs font-semibold text-gray-500 uppercase">
-                  Total
-                </span>
-              </div>
-              <div className="mb-2">
-                <p className="text-3xl font-bold text-[#1e3a8a]">
-                  {estatisticasQuery.data?.totalAtendimentos || 0}
-                </p>
-              </div>
-              <p className="text-sm text-gray-600">Total de Atendimentos</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+            <Button
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-full px-8 py-6 font-semibold text-lg shadow-lg transition-all"
+              size="lg"
+            >
+              Solicitar Atendimento
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+
+            <Button
+              variant="outline"
+              className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 rounded-full px-8 py-6 font-semibold text-lg"
+              size="lg"
+            >
+              Como Funciona
+            </Button>
+          </div>
+        </section>
+
+        {/* Trust Indicators */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 rounded-2xl p-6">
+          <div className="flex items-center gap-3 justify-center md:justify-start">
+            <Shield className="w-6 h-6 text-blue-600 flex-shrink-0" />
+            <div className="text-sm">
+              <p className="font-semibold text-gray-900">LGPD Compliant</p>
             </div>
-          </Card>
+          </div>
 
-          {/* Card 2: Fila Atual */}
-          <Card className="bg-white border-0 shadow-md hover:shadow-lg transition-shadow">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-50 rounded-lg flex items-center justify-center">
-                  <Activity className="w-6 h-6 text-orange-600" />
-                </div>
-                <span className="text-xs font-semibold text-gray-500 uppercase">
-                  Fila
-                </span>
-              </div>
-              <div className="mb-2">
-                <p className="text-3xl font-bold text-orange-600">
-                  {filaQuery.data?.length || 0}
-                </p>
-              </div>
-              <p className="text-sm text-gray-600">Fila Atual</p>
+          <div className="flex items-center gap-3 justify-center md:justify-start">
+            <Clock className="w-6 h-6 text-blue-600 flex-shrink-0" />
+            <div className="text-sm">
+              <p className="font-semibold text-gray-900">Resposta em até 24h</p>
             </div>
-          </Card>
+          </div>
+        </section>
 
-          {/* Card 3: Tempo Médio */}
-          <Card className="bg-white border-0 shadow-md hover:shadow-lg transition-shadow">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-50 rounded-lg flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-purple-600" />
-                </div>
-                <span className="text-xs font-semibold text-gray-500 uppercase">
-                  Tempo
-                </span>
-              </div>
-              <div className="mb-2">
-                <p className="text-3xl font-bold text-purple-600">
-                  {tempoMedioQuery.data || 0}
-                </p>
-                <p className="text-xs text-gray-500">minutos</p>
-              </div>
-              <p className="text-sm text-gray-600">Tempo Médio de Espera</p>
-            </div>
-          </Card>
+        {/* Features Grid */}
+        <section className="space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
+            Por que escolher Doctor Prescreve?
+          </h2>
 
-          {/* Card 4: Receitas Emitidas */}
-          <Card className="bg-white border-0 shadow-md hover:shadow-lg transition-shadow">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-50 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                </div>
-                <span className="text-xs font-semibold text-gray-500 uppercase">
-                  Receitas
-                </span>
-              </div>
-              <div className="mb-2">
-                <p className="text-3xl font-bold text-green-600">
-                  {estatisticasQuery.data?.receitasEmitidas || 0}
-                </p>
-              </div>
-              <p className="text-sm text-gray-600">Receitas Emitidas</p>
-            </div>
-          </Card>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {features.map((feature, index) => {
+              const Icon = feature.icon;
+              return (
+                <Card
+                  key={index}
+                  className="bg-white border border-gray-200 rounded-2xl p-6 text-center hover:shadow-lg transition-shadow"
+                >
+                  <div className="flex justify-center mb-4">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Icon className="w-8 h-8 text-blue-600" />
+                    </div>
+                  </div>
+                  <h3 className="font-bold text-gray-900 mb-1">
+                    {feature.title}
+                  </h3>
+                  <p className="text-sm text-gray-600">{feature.description}</p>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
 
-        {/* Seção de Status e Ações */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Status dos Atendimentos */}
-          <Card className="lg:col-span-2 bg-white border-0 shadow-md">
-            <div className="p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">
-                Status dos Atendimentos
+        {/* How It Works Carousel */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-bold text-gray-900 text-center">
+            Como Funciona
+          </h2>
+
+          <div className="relative bg-white rounded-2xl p-8 shadow-lg max-w-2xl mx-auto">
+            <div className="text-center space-y-4 min-h-[160px] flex flex-col justify-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600 text-white rounded-full font-bold mx-auto">
+                {slides[currentSlide].number}
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900">
+                {slides[currentSlide].title}
               </h3>
-
-              <div className="space-y-4">
-                {/* Em Atendimento */}
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-transparent rounded-lg border border-blue-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-[#1e3a8a] rounded-full"></div>
-                    <span className="font-medium text-gray-900">
-                      Em Atendimento
-                    </span>
-                  </div>
-                  <Badge className="bg-[#1e3a8a] text-white">
-                    {estatisticasQuery.data?.emAtendimento || 0}
-                  </Badge>
-                </div>
-
-                {/* Aprovados */}
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-transparent rounded-lg border border-green-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-green-600 rounded-full"></div>
-                    <span className="font-medium text-gray-900">Aprovados</span>
-                  </div>
-                  <Badge className="bg-green-600 text-white">
-                    {estatisticasQuery.data?.aprovados || 0}
-                  </Badge>
-                </div>
-
-                {/* Recusados */}
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-50 to-transparent rounded-lg border border-red-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-red-600 rounded-full"></div>
-                    <span className="font-medium text-gray-900">Recusados</span>
-                  </div>
-                  <Badge className="bg-red-600 text-white">
-                    {estatisticasQuery.data?.recusados || 0}
-                  </Badge>
-                </div>
-              </div>
+              <p className="text-gray-600 max-w-sm mx-auto">
+                {slides[currentSlide].description}
+              </p>
             </div>
-          </Card>
 
-          {/* Ações Rápidas */}
-          <Card className="bg-white border-0 shadow-md">
-            <div className="p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">
-                Ações Rápidas
-              </h3>
+            <div className="flex items-center justify-between mt-8">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={prevSlide}
+                className="rounded-full border-blue-600 text-blue-600 hover:bg-blue-50"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
 
-              <div className="space-y-3">
-                <Button
-                  onClick={() => setLocation("/atendimento/novo")}
-                  className="w-full bg-gradient-to-r from-[#1e3a8a] to-[#2563eb] hover:from-[#1e3a8a] hover:to-[#1e40af] text-white font-semibold"
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  Pegar Próximo Atendimento
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={() => setLocation("/historico")}
-                  className="w-full border-[#1e3a8a] text-[#1e3a8a] hover:bg-blue-50"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Ver Fila Completa
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={() => setLocation("/historico")}
-                  className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
-                >
-                  <AlertCircle className="w-4 h-4 mr-2" />
-                  Histórico de Atendimentos
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={() => setLocation("/documentos")}
-                  className="w-full border-[#1e3a8a] text-[#1e3a8a] hover:bg-blue-50"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Documentos e Termos
-                </Button>
+              <div className="flex gap-2">
+                {slides.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentSlide(index)}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      index === currentSlide ? "bg-blue-600" : "bg-gray-300"
+                    }`}
+                  />
+                ))}
               </div>
-            </div>
-          </Card>
-        </div>
 
-        {/* Informações da Marca */}
-        <div className="mt-12 p-6 bg-gradient-to-r from-[#1e3a8a] to-[#2563eb] text-white rounded-lg text-center">
-          <p className="text-sm opacity-90">
-            Doctor Prescreve © 2026 | Painel Médico Profissional
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={nextSlide}
+                className="rounded-full border-blue-600 text-blue-600 hover:bg-blue-50"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-center text-white space-y-4">
+          <h2 className="text-2xl font-bold">Pronto para começar?</h2>
+          <p className="text-blue-100 max-w-md mx-auto">
+            Solicite seu atendimento agora e receba uma avaliação médica em até 24 horas.
           </p>
-        </div>
+          <Button
+            className="bg-white text-blue-600 hover:bg-blue-50 font-semibold px-8 py-3 rounded-full"
+            size="lg"
+          >
+            Solicitar Atendimento Agora
+          </Button>
+        </section>
       </main>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-400 py-8 mt-16">
+        <div className="container mx-auto px-4 text-center text-sm space-y-4">
+          <p className="text-white font-semibold">Doctor Prescreve</p>
+          <p>© 2026 Todos os direitos reservados.</p>
+        </div>
+      </footer>
     </div>
   );
 }
