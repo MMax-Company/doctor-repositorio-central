@@ -836,13 +836,16 @@ app.get('/api/suporte/pendentes', auth, async (req, res) => {
     const pendentes = chamadosSuporte.filter(c => !c.atendido)
     res.json(pendentes)
   } catch (e) {
+    console.error('❌ Erro suporte:', e.message)
     res.status(500).json({ error: e.message })
   }
 })
 
 app.post('/api/suporte/atender/:id', auth, async (req, res) => {
   try {
-    const chamado = chamadosSuporte.find(c => c.id === req.params.id)
+    const chamado = chamadosSuporte.find(
+      c => c.id === req.params.id
+    )
 
     if (!chamado) {
       return res.status(404).json({
@@ -858,9 +861,8 @@ app.post('/api/suporte/atender/:id', auth, async (req, res) => {
     })
 
   } catch (e) {
-    res.status(500).json({
-      error: e.message
-    })
+    console.error('❌ Erro atender suporte:', e.message)
+    res.status(500).json({ error: e.message })
   }
 })
 
@@ -868,16 +870,48 @@ app.post('/api/enviar-whatsapp', auth, async (req, res) => {
   try {
     const { telefone, mensagem } = req.body
 
-    await enviarWhatsAppOficial(telefone, mensagem)
+    await enviarWhatsAppOficial(
+      telefone,
+      mensagem
+    )
 
     res.json({
       success: true
     })
 
   } catch (e) {
-    res.status(500).json({
-      error: e.message
+    console.error('❌ Erro WhatsApp:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.post('/api/fila/pegar-proximo', auth, async (req, res) => {
+  try {
+    const atendimentos = await db.getAtendimentos()
+
+    const proximo = atendimentos.find(
+      a => a.pagamento && a.status === ESTADOS_FLUXO.FILA
+    )
+
+    if (!proximo) {
+      return res.status(404).json({
+        error: 'Nenhum paciente na fila'
+      })
+    }
+
+    await db.atualizarStatus(
+      proximo.id,
+      'EM_ATENDIMENTO'
+    )
+
+    res.json({
+      success: true,
+      atendimento: proximo
     })
+
+  } catch (e) {
+    console.error('❌ Erro pegar próximo:', e.message)
+    res.status(500).json({ error: e.message })
   }
 })
 
