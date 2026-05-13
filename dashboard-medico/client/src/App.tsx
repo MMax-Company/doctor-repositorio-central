@@ -1,15 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-<<<<<<< HEAD
-<<<<<<< HEAD
 import { Route, Switch, Router as WouterRouter } from "wouter";
-=======
-import { Route, Switch, Router } from "wouter";
->>>>>>> 9c84c5b (fix: corrige roteamento do painel)
-=======
-import { Route, Switch, Router as WouterRouter } from "wouter";
->>>>>>> 0ec731d (fix: restaura painel medico classico)
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -38,8 +30,6 @@ function AppRouter() {
 
 function App() {
   return (
-<<<<<<< HEAD
-<<<<<<< HEAD
     <WouterRouter base="/painel-medico">
       <ErrorBoundary>
         <ThemeProvider defaultTheme="light">
@@ -50,25 +40,6 @@ function App() {
         </ThemeProvider>
       </ErrorBoundary>
     </WouterRouter>
-=======
-    <Router base="/painel-medico">
-=======
-    <WouterRouter base="/painel-medico">
->>>>>>> 0ec731d (fix: restaura painel medico classico)
-      <ErrorBoundary>
-        <ThemeProvider defaultTheme="light">
-          <TooltipProvider>
-            <Toaster />
-            <AppRouter />
-          </TooltipProvider>
-        </ThemeProvider>
-      </ErrorBoundary>
-<<<<<<< HEAD
-    </Router>
->>>>>>> 9c84c5b (fix: corrige roteamento do painel)
-=======
-    </WouterRouter>
->>>>>>> 0ec731d (fix: restaura painel medico classico)
   );
 }
 
