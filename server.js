@@ -3046,3 +3046,4 @@ app.get('*', (req, res) => {
 })
 
 startServer()
+}
