@@ -1865,7 +1865,7 @@ app.get('/painel-medico', (req, res) => {
         </div>
         <div class="form-group">
           <label><i class="fas fa-notes-medical"></i> Doença/Queixa</label>
-          <textarea disabled>${a.doencas || a.doenca || 'Não informado'}</textarea>
+          <textarea disabled>\${a.doencas || a.doenca || 'Não informado'}</textarea>
         </div>
         <div class="form-group">
           <label><i class="fas fa-capsules"></i> Medicamento Recomendado</label>
