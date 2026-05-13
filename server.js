@@ -826,6 +826,96 @@ app.get('/api/estatisticas', auth, async (req, res) => {
 })
 
 // ========================
+// 🎧 SUPORTE
+// ========================
+
+const chamadosSuporte = []
+
+app.get('/api/suporte/pendentes', auth, async (req, res) => {
+  try {
+    const pendentes = chamadosSuporte.filter(c => !c.atendido)
+    res.json(pendentes)
+  } catch (e) {
+    console.error('❌ Erro suporte:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.post('/api/suporte/atender/:id', auth, async (req, res) => {
+  try {
+    const chamado = chamadosSuporte.find(
+      c => c.id === req.params.id
+    )
+
+    if (!chamado) {
+      return res.status(404).json({
+        error: 'Chamado não encontrado'
+      })
+    }
+
+    chamado.atendido = true
+    chamado.atendido_em = new Date().toISOString()
+
+    res.json({
+      success: true
+    })
+
+  } catch (e) {
+    console.error('❌ Erro atender suporte:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.post('/api/enviar-whatsapp', auth, async (req, res) => {
+  try {
+    const { telefone, mensagem } = req.body
+
+    await enviarWhatsAppOficial(
+      telefone,
+      mensagem
+    )
+
+    res.json({
+      success: true
+    })
+
+  } catch (e) {
+    console.error('❌ Erro WhatsApp:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.post('/api/fila/pegar-proximo', auth, async (req, res) => {
+  try {
+    const atendimentos = await db.getAtendimentos()
+
+    const proximo = atendimentos.find(
+      a => a.pagamento && a.status === ESTADOS_FLUXO.FILA
+    )
+
+    if (!proximo) {
+      return res.status(404).json({
+        error: 'Nenhum paciente na fila'
+      })
+    }
+
+    await db.atualizarStatus(
+      proximo.id,
+      'EM_ATENDIMENTO'
+    )
+
+    res.json({
+      success: true,
+      atendimento: proximo
+    })
+
+  } catch (e) {
+    console.error('❌ Erro pegar próximo:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ========================
 //  PAINEL MEDICO
 // ========================
 app.get('/painel-medico', (req, res) => {
