@@ -17,7 +17,7 @@ const axios = require('axios')
 // ========================
 const db = require('./db-supabase-hybrid')
 const { createExpressMiddleware } = require('@trpc/server/adapters/express')
-const { obterTokenParaFrontend } = require('./memed')
+const memed = require('./memed')
 
 // ========================
 // 🚀 CONFIGURAÇÃO DO EXPRESS
@@ -2433,15 +2433,16 @@ app.get('/api/prontuario/:id/export', auth, async (req, res) => {
 // ========================
 // 🔐 MEMED: OBTER TOKEN PARA FRONTEND
 // ========================
-app.get('/api/memed/token', auth, async (req, res) => {
-  try {
-    const token = await memed.obterTokenParaFrontend()
-    res.json({ success: true, token })
-  } catch (error) {
-    console.error('❌ Erro ao obter token Memed:', error.message)
-    res.status(500).json({ error: error.message })
-  }
-})
+
+// app.get('/api/memed/token', auth, async (req, res) => {
+//   try {
+//     const token = await memed.obterTokenParaFrontend()
+//     res.json({ success: true, token })
+//   } catch (error) {
+//     console.error('❌ Erro ao obter token:', error)
+//     res.status(500).json({ error: error.message })
+//   }
+// })
 
 // ========================
 // 🧪 MEMED: VERIFICAR STATUS DA CONTA
