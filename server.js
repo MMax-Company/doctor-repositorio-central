@@ -134,10 +134,13 @@ const dashboardDistPath = path.join(__dirname, 'dashboard-medico', 'dist', 'publ
 console.log('🔍 Tentando servir dashboard de:', dashboardDistPath)
 if (fs.existsSync(dashboardDistPath)) {
   console.log('✅ Pasta dist encontrada!')
-  app.use("/painel-medico", express.static(dashboardDistPath))
-} else {
-  console.log('❌ Pasta dist NÃO encontrada!')
-}
+app.use(express.static(dashboardDistPath))
+
+app.get('/painel-medico', (req, res) => {
+  res.sendFile(
+    path.join(dashboardDistPath, 'index.html')
+  )
+})
 
 app.use(express.json())
 
