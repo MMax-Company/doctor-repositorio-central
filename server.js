@@ -129,21 +129,36 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
 // ========================
 app.use(cors())
 
-// PRIORIDADE MÁXIMA: Servir arquivos estáticos do dashboard
-const dashboardDistPath = path.join(__dirname, 'dashboard-medico', 'dist', 'public')
-console.log('🔍 Tentando servir dashboard de:', dashboardDistPath)
-if (fs.existsSync(dashboardDistPath)) {
-  console.log('✅ Pasta dist encontrada!')
-app.use(express.static(dashboardDistPath))
+const dashboardDistPath = path.join(
+  __dirname,
+  'dashboard-medico',
+  'dist',
+  'public'
+)
 
-app.get('/painel-medico', (req, res) => {
-  res.sendFile(
-    path.join(dashboardDistPath, 'index.html')
+console.log(
+  '🔍 Tentando servir dashboard de:',
+  dashboardDistPath
+)
+
+if (fs.existsSync(dashboardDistPath)) {
+
+  console.log('✅ Pasta dist encontrada!')
+
+  app.use(
+    '/assets',
+    express.static(
+      path.join(dashboardDistPath, 'assets')
+    )
   )
-})
+
+} else {
+
+  console.log('❌ Pasta dist NÃO encontrada!')
+
+}
 
 app.use(express.json())
-
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -3046,4 +3061,3 @@ app.get('*', (req, res) => {
 })
 
 startServer()
-}
