@@ -16,7 +16,6 @@ import {
   encrypt,
 } from "./db";
 import { TRPCError } from "@trpc/server";
-import { obterTokenParaFrontend } from "../../memed";
 
 // Procedimento apenas para médicos
 const medicoProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -217,15 +216,10 @@ export const appRouter = router({
       }),
     // Obter token da Memed para o frontend
     obterTokenMemed: medicoProcedure.query(async () => {
-      try {
-        const token = await obterTokenParaFrontend();
-        return { token };
-      } catch (error) {
-        throw new TRPCError({ 
-          code: 'INTERNAL_SERVER_ERROR', 
-          message: 'Erro ao obter token da Memed' 
-        });
-      }
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'obterTokenParaFrontend não está mais disponível — função removida de memed.js',
+      });
     }),
 
     // Salvar link da receita gerada pela Memed
