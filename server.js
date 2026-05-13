@@ -2254,7 +2254,7 @@ app.put('/api/decisao/:id/revisar', auth, async (req, res) => {
     // Só pode revisar decisões já tomadas (APROVADO ou RECUSADO)
     if (at.status !== ESTADOS_FLUXO.APROVADO && at.status !== ESTADOS_FLUXO.RECUSADO) {
       return res.status(400).json({
-        error: `Só é possível revisar atendimentos com status APROVADO ou RECUSADO. Status atual: ${at.status}`
+        error: `Só é possível revisar atendimentos com status APROVADO ou RECUSADO. Status atual: \${at.status}`
       })
     }
 
@@ -3003,7 +3003,7 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
 
     if (!transicaoValida(at.status, status)) {
       return res.status(400).json({
-        error: `Transição inválida: ${at.status} → ${status}`,
+        error: `Transição inválida:\${at.status} → ${status}`,
         transicoes_permitidas: TRANSICOES_VALIDAS[at.status] || []
       })
     }
