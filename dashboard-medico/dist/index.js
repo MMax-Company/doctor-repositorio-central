@@ -1,52 +1,3 @@
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
-  if (typeof require !== "undefined") return require.apply(this, arguments);
-  throw Error('Dynamic require of "' + x + '" is not supported');
-});
-var __commonJS = (cb, mod) => function __require2() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-};
-var __copyProps = (to, from, except, desc2) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key2 of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key2) && key2 !== except)
-        __defProp(to, key2, { get: () => from[key2], enumerable: !(desc2 = __getOwnPropDesc(from, key2)) || desc2.enumerable });
-  }
-  return to;
-};
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
-
-// ../memed.js
-var require_memed = __commonJS({
-  "../memed.js"(exports, module) {
-    __require("dotenv").config();
-    function obterConfiguracaoMemed() {
-      return {
-        apiKey: process.env.MEMED_API_KEY,
-        secretKey: process.env.MEMED_SECRET_KEY,
-        ambiente: process.env.MEMED_ENVIRONMENT || "homologacao"
-      };
-    }
-    module.exports = {
-      obterConfiguracaoMemed
-    };
-  }
-});
-
 // server/_core/index.ts
 import "dotenv/config";
 import express2 from "express";
@@ -791,7 +742,6 @@ var systemRouter = router({
 
 // server/routers.ts
 import { z as z2 } from "zod";
-var import_memed = __toESM(require_memed(), 1);
 import { TRPCError as TRPCError3 } from "@trpc/server";
 var medicoProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "medico" && ctx.user.role !== "admin") {
@@ -961,15 +911,10 @@ var appRouter = router({
     }),
     // Obter token da Memed para o frontend
     obterTokenMemed: medicoProcedure.query(async () => {
-      try {
-        const token = await (0, import_memed.obterTokenParaFrontend)();
-        return { token };
-      } catch (error) {
-        throw new TRPCError3({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Erro ao obter token da Memed"
-        });
-      }
+      throw new TRPCError3({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "obterTokenParaFrontend n\xE3o est\xE1 mais dispon\xEDvel \u2014 fun\xE7\xE3o removida de memed.js"
+      });
     }),
     // Salvar link da receita gerada pela Memed
     salvarReceitaMemed: medicoProcedure.input(
