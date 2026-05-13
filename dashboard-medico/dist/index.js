@@ -1,0 +1,1280 @@
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+}) : x)(function(x) {
+  if (typeof require !== "undefined") return require.apply(this, arguments);
+  throw Error('Dynamic require of "' + x + '" is not supported');
+});
+var __commonJS = (cb, mod) => function __require2() {
+  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
+var __copyProps = (to, from, except, desc2) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key2 of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key2) && key2 !== except)
+        __defProp(to, key2, { get: () => from[key2], enumerable: !(desc2 = __getOwnPropDesc(from, key2)) || desc2.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+
+// ../memed.js
+var require_memed = __commonJS({
+  "../memed.js"(exports, module) {
+    __require("dotenv").config();
+    function obterConfiguracaoMemed() {
+      return {
+        apiKey: process.env.MEMED_API_KEY,
+        secretKey: process.env.MEMED_SECRET_KEY,
+        ambiente: process.env.MEMED_ENVIRONMENT || "homologacao"
+      };
+    }
+    module.exports = {
+      obterConfiguracaoMemed
+    };
+  }
+});
+
+// server/_core/index.ts
+import "dotenv/config";
+import express2 from "express";
+import { createServer } from "http";
+import net from "net";
+import { createExpressMiddleware } from "@trpc/server/adapters/express";
+
+// shared/const.ts
+var COOKIE_NAME = "app_session_id";
+var ONE_YEAR_MS = 1e3 * 60 * 60 * 24 * 365;
+var AXIOS_TIMEOUT_MS = 3e4;
+var UNAUTHED_ERR_MSG = "Please login (10001)";
+var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
+
+// server/db.ts
+import { eq, desc, and } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+
+// drizzle/schema.ts
+import { integer, pgEnum, pgTable, text, timestamp, varchar, jsonb, boolean, serial } from "drizzle-orm/pg-core";
+var roleEnum = pgEnum("role", ["user", "admin", "medico"]);
+var statusEnum = pgEnum("status", ["FILA", "EM_ATENDIMENTO", "APROVADO", "RECUSADO"]);
+var users = pgTable("users", {
+  /**
+   * Surrogate primary key. Auto-incremented numeric value managed by the database.
+   * Use this for relations between tables.
+   */
+  id: serial("id").primaryKey(),
+  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
+  openId: varchar("openId", { length: 64 }).notNull().unique(),
+  name: text("name"),
+  email: varchar("email", { length: 320 }),
+  loginMethod: varchar("loginMethod", { length: 64 }),
+  role: roleEnum("role").default("user").notNull(),
+  crm: varchar("crm", { length: 20 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull()
+});
+var atendimentos = pgTable("atendimentos", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  pacienteNomeEncrypted: text("pacienteNomeEncrypted"),
+  pacienteCpfEncrypted: text("pacienteCpfEncrypted"),
+  pacienteTelefoneEncrypted: text("pacienteTelefoneEncrypted"),
+  pacienteEmailEncrypted: text("pacienteEmailEncrypted"),
+  pacienteNascimentoEncrypted: text("pacienteNascimentoEncrypted"),
+  doencasEncrypted: text("doencasEncrypted"),
+  status: statusEnum("status").default("FILA").notNull(),
+  pagamento: boolean("pagamento").default(false).notNull(),
+  pagamentoEm: timestamp("pagamentoEm"),
+  emAtendimentoPor: varchar("emAtendimentoPor", { length: 64 }),
+  emAtendimentoDesde: timestamp("emAtendimentoDesde"),
+  lockedUntil: timestamp("lockedUntil"),
+  tentativasLock: integer("tentativasLock").default(0),
+  finalizadoEm: timestamp("finalizadoEm"),
+  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizadoEm").defaultNow().notNull()
+});
+var prontuarios = pgTable("prontuarios", {
+  id: serial("id").primaryKey(),
+  atendimentoId: varchar("atendimentoId", { length: 64 }).notNull(),
+  medicamentos: jsonb("medicamentos"),
+  orientacoes: text("orientacoes"),
+  diagnostico: text("diagnostico"),
+  observacoes: text("observacoes"),
+  receitaPdfUrl: varchar("receitaPdfUrl", { length: 500 }),
+  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizadoEm").defaultNow().notNull()
+});
+
+// server/_core/env.ts
+var ENV = {
+  appId: process.env.VITE_APP_ID ?? "",
+  cookieSecret: process.env.JWT_SECRET ?? "",
+  databaseUrl: process.env.DATABASE_URL ?? "",
+  oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
+  ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
+  isProduction: process.env.NODE_ENV === "production",
+  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
+  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? ""
+};
+
+// server/db.ts
+import crypto from "crypto";
+var _db = null;
+async function getDb() {
+  if (!_db && process.env.DATABASE_URL) {
+    try {
+      const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+      });
+      _db = drizzle(pool);
+    } catch (error) {
+      console.warn("[Database] Failed to connect:", error);
+      _db = null;
+    }
+  }
+  return _db;
+}
+var ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "default-key-change-in-production";
+var key;
+if (/^[a-f0-9]{64}$/i.test(ENCRYPTION_KEY)) {
+  key = Buffer.from(ENCRYPTION_KEY, "hex");
+} else {
+  key = crypto.createHash("sha256").update(ENCRYPTION_KEY).digest();
+}
+function decrypt(text2) {
+  if (!text2) return null;
+  try {
+    const [ivHex, data] = text2.split(":");
+    const decipher = crypto.createDecipheriv("aes-256-cbc", key, Buffer.from(ivHex, "hex"));
+    return decipher.update(data, "hex", "utf8") + decipher.final("utf8");
+  } catch (e) {
+    return null;
+  }
+}
+async function upsertUser(user) {
+  if (!user.openId) {
+    throw new Error("User openId is required for upsert");
+  }
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot upsert user: database not available");
+    return;
+  }
+  try {
+    const values = {
+      openId: user.openId
+    };
+    const updateSet = {};
+    const textFields = ["name", "email", "loginMethod"];
+    const assignNullable = (field) => {
+      const value = user[field];
+      if (value === void 0) return;
+      const normalized = value ?? null;
+      values[field] = normalized;
+      updateSet[field] = normalized;
+    };
+    textFields.forEach(assignNullable);
+    if (user.lastSignedIn !== void 0) {
+      values.lastSignedIn = user.lastSignedIn;
+      updateSet.lastSignedIn = user.lastSignedIn;
+    }
+    if (user.role !== void 0) {
+      values.role = user.role;
+      updateSet.role = user.role;
+    } else if (user.openId === ENV.ownerOpenId) {
+      values.role = "admin";
+      updateSet.role = "admin";
+    }
+    if (!values.lastSignedIn) {
+      values.lastSignedIn = /* @__PURE__ */ new Date();
+    }
+    if (Object.keys(updateSet).length === 0) {
+      updateSet.lastSignedIn = /* @__PURE__ */ new Date();
+    }
+    await db.insert(users).values(values).onConflictDoUpdate({
+      target: users.openId,
+      set: updateSet
+    });
+  } catch (error) {
+    console.error("[Database] Failed to upsert user:", error);
+    throw error;
+  }
+}
+async function getUserByOpenId(openId) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return void 0;
+  }
+  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  return result.length > 0 ? result[0] : void 0;
+}
+async function obterAtendimento(id) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(atendimentos).where(eq(atendimentos.id, id)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+async function obterFilaOrdenada() {
+  const db = await getDb();
+  if (!db) return [];
+  const result = await db.select().from(atendimentos).where(
+    and(
+      eq(atendimentos.pagamento, true),
+      eq(atendimentos.status, "FILA")
+    )
+  ).orderBy(desc(atendimentos.criadoEm));
+  return result;
+}
+async function tentarPegarAtendimento(atendimentoId, medicoId) {
+  const db = await getDb();
+  if (!db) return { sucesso: false, motivo: "Database not available" };
+  const at = await obterAtendimento(atendimentoId);
+  if (!at) return { sucesso: false, motivo: "Atendimento n\xE3o encontrado" };
+  if (at.status === "EM_ATENDIMENTO" && at.lockedUntil && new Date(at.lockedUntil) > /* @__PURE__ */ new Date()) {
+    return { sucesso: false, motivo: "J\xE1 em atendimento por outro m\xE9dico" };
+  }
+  const lockUntil = new Date(Date.now() + 30 * 6e4);
+  await db.update(atendimentos).set({
+    status: "EM_ATENDIMENTO",
+    emAtendimentoPor: medicoId,
+    emAtendimentoDesde: /* @__PURE__ */ new Date(),
+    lockedUntil: lockUntil,
+    tentativasLock: (at.tentativasLock || 0) + 1
+  }).where(eq(atendimentos.id, atendimentoId));
+  const updated = await obterAtendimento(atendimentoId);
+  return { sucesso: true, atendimento: updated || void 0 };
+}
+async function liberarAtendimento(atendimentoId) {
+  const db = await getDb();
+  if (!db) return false;
+  await db.update(atendimentos).set({
+    status: "FILA",
+    emAtendimentoPor: null,
+    emAtendimentoDesde: null,
+    lockedUntil: null
+  }).where(eq(atendimentos.id, atendimentoId));
+  return true;
+}
+async function atualizarStatusAtendimento(atendimentoId, novoStatus) {
+  const db = await getDb();
+  if (!db) return false;
+  await db.update(atendimentos).set({
+    status: novoStatus,
+    finalizadoEm: novoStatus === "APROVADO" || novoStatus === "RECUSADO" ? /* @__PURE__ */ new Date() : null
+  }).where(eq(atendimentos.id, atendimentoId));
+  return true;
+}
+async function salvarProntuario(atendimentoId, dados) {
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const existing = await db.select().from(prontuarios).where(eq(prontuarios.atendimentoId, atendimentoId)).limit(1);
+    if (existing.length > 0) {
+      await db.update(prontuarios).set(dados).where(eq(prontuarios.atendimentoId, atendimentoId));
+      return db.select().from(prontuarios).where(eq(prontuarios.atendimentoId, atendimentoId)).then((r) => r[0] || null);
+    } else {
+      await db.insert(prontuarios).values({ ...dados, atendimentoId });
+      return db.select().from(prontuarios).where(eq(prontuarios.atendimentoId, atendimentoId)).then((r) => r[0] || null);
+    }
+  } catch (error) {
+    console.error("[Database] Failed to save prontuario:", error);
+    return null;
+  }
+}
+async function obterProntuario(atendimentoId) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(prontuarios).where(eq(prontuarios.atendimentoId, atendimentoId)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+async function obterEstatisticas() {
+  const db = await getDb();
+  if (!db) return { total: 0, fila: 0, emAtendimento: 0, aprovados: 0, recusados: 0 };
+  const todos = await db.select().from(atendimentos);
+  const fila = await db.select().from(atendimentos).where(and(eq(atendimentos.pagamento, true), eq(atendimentos.status, "FILA")));
+  const emAtendimento = await db.select().from(atendimentos).where(eq(atendimentos.status, "EM_ATENDIMENTO"));
+  const aprovados = await db.select().from(atendimentos).where(eq(atendimentos.status, "APROVADO"));
+  const recusados = await db.select().from(atendimentos).where(eq(atendimentos.status, "RECUSADO"));
+  return {
+    totalAtendimentos: todos.length,
+    fila: fila.length,
+    emAtendimento: emAtendimento.length,
+    aprovados: aprovados.length,
+    recusados: recusados.length,
+    receitasEmitidas: aprovados.length
+  };
+}
+
+// server/_core/cookies.ts
+function isSecureRequest(req) {
+  if (req.protocol === "https") return true;
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  if (!forwardedProto) return false;
+  const protoList = Array.isArray(forwardedProto) ? forwardedProto : forwardedProto.split(",");
+  return protoList.some((proto) => proto.trim().toLowerCase() === "https");
+}
+function getSessionCookieOptions(req) {
+  return {
+    httpOnly: true,
+    path: "/",
+    sameSite: "none",
+    secure: isSecureRequest(req)
+  };
+}
+
+// shared/_core/errors.ts
+var HttpError = class extends Error {
+  constructor(statusCode, message) {
+    super(message);
+    this.statusCode = statusCode;
+    this.name = "HttpError";
+  }
+};
+var ForbiddenError = (msg) => new HttpError(403, msg);
+
+// server/_core/sdk.ts
+import axios from "axios";
+import { parse as parseCookieHeader } from "cookie";
+import { SignJWT, jwtVerify } from "jose";
+var isNonEmptyString = (value) => typeof value === "string" && value.length > 0;
+var EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
+var GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
+var GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
+var OAuthService = class {
+  constructor(client) {
+    this.client = client;
+    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
+    if (!ENV.oAuthServerUrl) {
+      console.error(
+        "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable."
+      );
+    }
+  }
+  decodeState(state) {
+    const redirectUri = atob(state);
+    return redirectUri;
+  }
+  async getTokenByCode(code, state) {
+    const payload = {
+      clientId: ENV.appId,
+      grantType: "authorization_code",
+      code,
+      redirectUri: this.decodeState(state)
+    };
+    const { data } = await this.client.post(
+      EXCHANGE_TOKEN_PATH,
+      payload
+    );
+    return data;
+  }
+  async getUserInfoByToken(token) {
+    const { data } = await this.client.post(
+      GET_USER_INFO_PATH,
+      {
+        accessToken: token.accessToken
+      }
+    );
+    return data;
+  }
+};
+var createOAuthHttpClient = () => axios.create({
+  baseURL: ENV.oAuthServerUrl,
+  timeout: AXIOS_TIMEOUT_MS
+});
+var SDKServer = class {
+  client;
+  oauthService;
+  constructor(client = createOAuthHttpClient()) {
+    this.client = client;
+    this.oauthService = new OAuthService(this.client);
+  }
+  deriveLoginMethod(platforms, fallback) {
+    if (fallback && fallback.length > 0) return fallback;
+    if (!Array.isArray(platforms) || platforms.length === 0) return null;
+    const set = new Set(
+      platforms.filter((p) => typeof p === "string")
+    );
+    if (set.has("REGISTERED_PLATFORM_EMAIL")) return "email";
+    if (set.has("REGISTERED_PLATFORM_GOOGLE")) return "google";
+    if (set.has("REGISTERED_PLATFORM_APPLE")) return "apple";
+    if (set.has("REGISTERED_PLATFORM_MICROSOFT") || set.has("REGISTERED_PLATFORM_AZURE"))
+      return "microsoft";
+    if (set.has("REGISTERED_PLATFORM_GITHUB")) return "github";
+    const first = Array.from(set)[0];
+    return first ? first.toLowerCase() : null;
+  }
+  /**
+   * Exchange OAuth authorization code for access token
+   * @example
+   * const tokenResponse = await sdk.exchangeCodeForToken(code, state);
+   */
+  async exchangeCodeForToken(code, state) {
+    return this.oauthService.getTokenByCode(code, state);
+  }
+  /**
+   * Get user information using access token
+   * @example
+   * const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
+   */
+  async getUserInfo(accessToken) {
+    const data = await this.oauthService.getUserInfoByToken({
+      accessToken
+    });
+    const loginMethod = this.deriveLoginMethod(
+      data?.platforms,
+      data?.platform ?? data.platform ?? null
+    );
+    return {
+      ...data,
+      platform: loginMethod,
+      loginMethod
+    };
+  }
+  parseCookies(cookieHeader) {
+    if (!cookieHeader) {
+      return /* @__PURE__ */ new Map();
+    }
+    const parsed = parseCookieHeader(cookieHeader);
+    return new Map(Object.entries(parsed));
+  }
+  getSessionSecret() {
+    const secret = ENV.cookieSecret;
+    return new TextEncoder().encode(secret);
+  }
+  /**
+   * Create a session token for a Manus user openId
+   * @example
+   * const sessionToken = await sdk.createSessionToken(userInfo.openId);
+   */
+  async createSessionToken(openId, options = {}) {
+    return this.signSession(
+      {
+        openId,
+        appId: ENV.appId,
+        name: options.name || ""
+      },
+      options
+    );
+  }
+  async signSession(payload, options = {}) {
+    const issuedAt = Date.now();
+    const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
+    const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1e3);
+    const secretKey = this.getSessionSecret();
+    return new SignJWT({
+      openId: payload.openId,
+      appId: payload.appId,
+      name: payload.name
+    }).setProtectedHeader({ alg: "HS256", typ: "JWT" }).setExpirationTime(expirationSeconds).sign(secretKey);
+  }
+  async verifySession(cookieValue) {
+    if (!cookieValue) {
+      console.warn("[Auth] Missing session cookie");
+      return null;
+    }
+    try {
+      const secretKey = this.getSessionSecret();
+      const { payload } = await jwtVerify(cookieValue, secretKey, {
+        algorithms: ["HS256"]
+      });
+      const { openId, appId, name } = payload;
+      if (!isNonEmptyString(openId) || !isNonEmptyString(appId) || !isNonEmptyString(name)) {
+        console.warn("[Auth] Session payload missing required fields");
+        return null;
+      }
+      return {
+        openId,
+        appId,
+        name
+      };
+    } catch (error) {
+      console.warn("[Auth] Session verification failed", String(error));
+      return null;
+    }
+  }
+  async getUserInfoWithJwt(jwtToken) {
+    const payload = {
+      jwtToken,
+      projectId: ENV.appId
+    };
+    const { data } = await this.client.post(
+      GET_USER_INFO_WITH_JWT_PATH,
+      payload
+    );
+    const loginMethod = this.deriveLoginMethod(
+      data?.platforms,
+      data?.platform ?? data.platform ?? null
+    );
+    return {
+      ...data,
+      platform: loginMethod,
+      loginMethod
+    };
+  }
+  async authenticateRequest(req) {
+    const cookies = this.parseCookies(req.headers.cookie);
+    const sessionCookie = cookies.get(COOKIE_NAME);
+    const session = await this.verifySession(sessionCookie);
+    if (!session) {
+      throw ForbiddenError("Invalid session cookie");
+    }
+    const sessionUserId = session.openId;
+    const signedInAt = /* @__PURE__ */ new Date();
+    let user = await getUserByOpenId(sessionUserId);
+    if (!user) {
+      try {
+        const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
+        await upsertUser({
+          openId: userInfo.openId,
+          name: userInfo.name || null,
+          email: userInfo.email ?? null,
+          loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+          lastSignedIn: signedInAt
+        });
+        user = await getUserByOpenId(userInfo.openId);
+      } catch (error) {
+        console.error("[Auth] Failed to sync user from OAuth:", error);
+        throw ForbiddenError("Failed to sync user info");
+      }
+    }
+    if (!user) {
+      throw ForbiddenError("User not found");
+    }
+    await upsertUser({
+      openId: user.openId,
+      lastSignedIn: signedInAt
+    });
+    return user;
+  }
+};
+var sdk = new SDKServer();
+
+// server/_core/oauth.ts
+function getQueryParam(req, key2) {
+  const value = req.query[key2];
+  return typeof value === "string" ? value : void 0;
+}
+function registerOAuthRoutes(app) {
+  app.get("/api/oauth/callback", async (req, res) => {
+    const code = getQueryParam(req, "code");
+    const state = getQueryParam(req, "state");
+    if (!code || !state) {
+      res.status(400).json({ error: "code and state are required" });
+      return;
+    }
+    try {
+      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
+      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
+      if (!userInfo.openId) {
+        res.status(400).json({ error: "openId missing from user info" });
+        return;
+      }
+      await upsertUser({
+        openId: userInfo.openId,
+        name: userInfo.name || null,
+        email: userInfo.email ?? null,
+        loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+        lastSignedIn: /* @__PURE__ */ new Date()
+      });
+      const sessionToken = await sdk.createSessionToken(userInfo.openId, {
+        name: userInfo.name || "",
+        expiresInMs: ONE_YEAR_MS
+      });
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      res.redirect(302, "/");
+    } catch (error) {
+      console.error("[OAuth] Callback failed", error);
+      res.status(500).json({ error: "OAuth callback failed" });
+    }
+  });
+}
+
+// server/_core/storageProxy.ts
+function registerStorageProxy(app) {
+  app.get("/manus-storage/*", async (req, res) => {
+    const key2 = req.params[0];
+    if (!key2) {
+      res.status(400).send("Missing storage key");
+      return;
+    }
+    if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
+      res.status(500).send("Storage proxy not configured");
+      return;
+    }
+    try {
+      const forgeUrl = new URL(
+        "v1/storage/presign/get",
+        ENV.forgeApiUrl.replace(/\/+$/, "") + "/"
+      );
+      forgeUrl.searchParams.set("path", key2);
+      const forgeResp = await fetch(forgeUrl, {
+        headers: { Authorization: `Bearer ${ENV.forgeApiKey}` }
+      });
+      if (!forgeResp.ok) {
+        const body = await forgeResp.text().catch(() => "");
+        console.error(`[StorageProxy] forge error: ${forgeResp.status} ${body}`);
+        res.status(502).send("Storage backend error");
+        return;
+      }
+      const { url } = await forgeResp.json();
+      if (!url) {
+        res.status(502).send("Empty signed URL from backend");
+        return;
+      }
+      res.set("Cache-Control", "no-store");
+      res.redirect(307, url);
+    } catch (err) {
+      console.error("[StorageProxy] failed:", err);
+      res.status(502).send("Storage proxy error");
+    }
+  });
+}
+
+// server/_core/systemRouter.ts
+import { z } from "zod";
+
+// server/_core/notification.ts
+import { TRPCError } from "@trpc/server";
+var TITLE_MAX_LENGTH = 1200;
+var CONTENT_MAX_LENGTH = 2e4;
+var trimValue = (value) => value.trim();
+var isNonEmptyString2 = (value) => typeof value === "string" && value.trim().length > 0;
+var buildEndpointUrl = (baseUrl) => {
+  const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+  return new URL(
+    "webdevtoken.v1.WebDevService/SendNotification",
+    normalizedBase
+  ).toString();
+};
+var validatePayload = (input) => {
+  if (!isNonEmptyString2(input.title)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Notification title is required."
+    });
+  }
+  if (!isNonEmptyString2(input.content)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Notification content is required."
+    });
+  }
+  const title = trimValue(input.title);
+  const content = trimValue(input.content);
+  if (title.length > TITLE_MAX_LENGTH) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Notification title must be at most ${TITLE_MAX_LENGTH} characters.`
+    });
+  }
+  if (content.length > CONTENT_MAX_LENGTH) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Notification content must be at most ${CONTENT_MAX_LENGTH} characters.`
+    });
+  }
+  return { title, content };
+};
+async function notifyOwner(payload) {
+  const { title, content } = validatePayload(payload);
+  if (!ENV.forgeApiUrl) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Notification service URL is not configured."
+    });
+  }
+  if (!ENV.forgeApiKey) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Notification service API key is not configured."
+    });
+  }
+  const endpoint = buildEndpointUrl(ENV.forgeApiUrl);
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${ENV.forgeApiKey}`,
+        "content-type": "application/json",
+        "connect-protocol-version": "1"
+      },
+      body: JSON.stringify({ title, content })
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      console.warn(
+        `[Notification] Failed to notify owner (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`
+      );
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("[Notification] Error calling notification service:", error);
+    return false;
+  }
+}
+
+// server/_core/trpc.ts
+import { initTRPC, TRPCError as TRPCError2 } from "@trpc/server";
+import superjson from "superjson";
+var t = initTRPC.context().create({
+  transformer: superjson
+});
+var router = t.router;
+var publicProcedure = t.procedure;
+var requireUser = t.middleware(async (opts) => {
+  const { ctx, next } = opts;
+  if (!ctx.user) {
+    throw new TRPCError2({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+  }
+  return next({
+    ctx: {
+      ...ctx,
+      user: ctx.user
+    }
+  });
+});
+var protectedProcedure = t.procedure.use(requireUser);
+var adminProcedure = t.procedure.use(
+  t.middleware(async (opts) => {
+    const { ctx, next } = opts;
+    if (!ctx.user || ctx.user.role !== "admin") {
+      throw new TRPCError2({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
+    }
+    return next({
+      ctx: {
+        ...ctx,
+        user: ctx.user
+      }
+    });
+  })
+);
+
+// server/_core/systemRouter.ts
+var systemRouter = router({
+  health: publicProcedure.input(
+    z.object({
+      timestamp: z.number().min(0, "timestamp cannot be negative")
+    })
+  ).query(() => ({
+    ok: true
+  })),
+  notifyOwner: adminProcedure.input(
+    z.object({
+      title: z.string().min(1, "title is required"),
+      content: z.string().min(1, "content is required")
+    })
+  ).mutation(async ({ input }) => {
+    const delivered = await notifyOwner(input);
+    return {
+      success: delivered
+    };
+  })
+});
+
+// server/routers.ts
+import { z as z2 } from "zod";
+var import_memed = __toESM(require_memed(), 1);
+import { TRPCError as TRPCError3 } from "@trpc/server";
+var medicoProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.role !== "medico" && ctx.user.role !== "admin") {
+    throw new TRPCError3({ code: "FORBIDDEN", message: "Apenas m\xE9dicos podem acessar" });
+  }
+  return next({ ctx });
+});
+var appRouter = router({
+  system: systemRouter,
+  auth: router({
+    me: publicProcedure.query((opts) => opts.ctx.user),
+    logout: publicProcedure.mutation(({ ctx }) => {
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      return {
+        success: true
+      };
+    })
+  }),
+  // Rotas de Atendimentos
+  atendimentos: router({
+    // Obter fila de atendimentos
+    obterFila: medicoProcedure.query(async () => {
+      const fila = await obterFilaOrdenada();
+      return fila.map((at) => ({
+        ...at,
+        pacienteNome: decrypt(at.pacienteNomeEncrypted),
+        pacienteCpf: decrypt(at.pacienteCpfEncrypted),
+        pacienteTelefone: decrypt(at.pacienteTelefoneEncrypted),
+        doencas: decrypt(at.doencasEncrypted)
+      }));
+    }),
+    // Pegar próximo atendimento
+    pegarProximo: medicoProcedure.mutation(async ({ ctx }) => {
+      const fila = await obterFilaOrdenada();
+      if (fila.length === 0) {
+        throw new TRPCError3({ code: "NOT_FOUND", message: "Fila vazia" });
+      }
+      const proximo = fila[0];
+      const resultado = await tentarPegarAtendimento(proximo.id, ctx.user.id.toString());
+      if (!resultado.sucesso) {
+        throw new TRPCError3({ code: "CONFLICT", message: resultado.motivo });
+      }
+      const at = resultado.atendimento;
+      return {
+        ...at,
+        pacienteNome: decrypt(at.pacienteNomeEncrypted),
+        pacienteCpf: decrypt(at.pacienteCpfEncrypted),
+        pacienteTelefone: decrypt(at.pacienteTelefoneEncrypted),
+        pacienteEmail: decrypt(at.pacienteEmailEncrypted),
+        doencas: decrypt(at.doencasEncrypted)
+      };
+    }),
+    // Obter atendimento por ID
+    obter: medicoProcedure.input(z2.string()).query(async ({ input }) => {
+      const at = await obterAtendimento(input);
+      if (!at) {
+        throw new TRPCError3({ code: "NOT_FOUND", message: "Atendimento n\xE3o encontrado" });
+      }
+      return {
+        ...at,
+        pacienteNome: decrypt(at.pacienteNomeEncrypted),
+        pacienteCpf: decrypt(at.pacienteCpfEncrypted),
+        pacienteTelefone: decrypt(at.pacienteTelefoneEncrypted),
+        pacienteEmail: decrypt(at.pacienteEmailEncrypted),
+        pacienteNascimento: decrypt(at.pacienteNascimentoEncrypted),
+        doencas: decrypt(at.doencasEncrypted)
+      };
+    }),
+    // Liberar atendimento
+    liberar: medicoProcedure.input(z2.string()).mutation(async ({ input }) => {
+      const sucesso = await liberarAtendimento(input);
+      if (!sucesso) {
+        throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao liberar atendimento" });
+      }
+      return { sucesso: true };
+    }),
+    // Obter estatísticas
+    obterEstatisticas: medicoProcedure.query(async () => {
+      return await obterEstatisticas();
+    }),
+    // Calcular tempo médio de espera
+    obterTempoMedioEspera: medicoProcedure.query(async () => {
+      const fila = await obterFilaOrdenada();
+      if (fila.length === 0) return 0;
+      const tempos = fila.map((at) => {
+        const pagamentoEm = at.pagamentoEm ? new Date(at.pagamentoEm).getTime() : new Date(at.criadoEm).getTime();
+        const agora = Date.now();
+        return Math.floor((agora - pagamentoEm) / 6e4);
+      });
+      return Math.floor(tempos.reduce((a, b) => a + b, 0) / tempos.length);
+    }),
+    // Obter histórico de atendimentos
+    obterHistorico: medicoProcedure.query(async () => {
+      return [];
+    })
+  }),
+  // Rotas de Prontuários
+  prontuarios: router({
+    // Obter prontuário
+    obter: medicoProcedure.input(z2.string()).query(async ({ input }) => {
+      return await obterProntuario(input);
+    }),
+    // Salvar prontuário
+    salvar: medicoProcedure.input(
+      z2.object({
+        atendimentoId: z2.string(),
+        medicamentos: z2.array(
+          z2.object({
+            id: z2.string().optional(),
+            nome: z2.string(),
+            dosagem: z2.string(),
+            duracao: z2.string(),
+            quantidade: z2.number(),
+            instrucoes: z2.string().optional()
+          })
+        ),
+        orientacoes: z2.string().optional(),
+        diagnostico: z2.string().optional(),
+        observacoes: z2.string().optional()
+      })
+    ).mutation(async ({ input }) => {
+      const prontuario = await salvarProntuario(input.atendimentoId, {
+        medicamentos: input.medicamentos,
+        orientacoes: input.orientacoes,
+        diagnostico: input.diagnostico,
+        observacoes: input.observacoes
+      });
+      if (!prontuario) {
+        throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao salvar prontu\xE1rio" });
+      }
+      return prontuario;
+    })
+  }),
+  // Rotas de Decisões Médicas
+  decisoes: router({
+    // Aprovar atendimento
+    aprovar: medicoProcedure.input(
+      z2.object({
+        atendimentoId: z2.string(),
+        orientacoes: z2.string().optional()
+      })
+    ).mutation(async ({ input }) => {
+      const atendimento = await obterAtendimento(input.atendimentoId);
+      if (!atendimento) {
+        throw new TRPCError3({ code: "NOT_FOUND", message: "Atendimento n\xE3o encontrado" });
+      }
+      const prontuario = await obterProntuario(input.atendimentoId);
+      const dadosAtendimento = {
+        ...atendimento,
+        pacienteNome: decrypt(atendimento.pacienteNomeEncrypted),
+        pacienteCpf: decrypt(atendimento.pacienteCpfEncrypted),
+        pacienteTelefone: decrypt(atendimento.pacienteTelefoneEncrypted),
+        pacienteEmail: decrypt(atendimento.pacienteEmailEncrypted),
+        pacienteNascimento: decrypt(atendimento.pacienteNascimentoEncrypted),
+        medicamentos: prontuario?.medicamentos || [],
+        orientacoes: input.orientacoes || prontuario?.orientacoes || ""
+      };
+      const sucesso = await atualizarStatusAtendimento(input.atendimentoId, "APROVADO");
+      if (!sucesso) {
+        throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao aprovar atendimento" });
+      }
+      return {
+        sucesso: true,
+        mensagem: "Atendimento aprovado com sucesso"
+      };
+    }),
+    // Obter token da Memed para o frontend
+    obterTokenMemed: medicoProcedure.query(async () => {
+      try {
+        const token = await (0, import_memed.obterTokenParaFrontend)();
+        return { token };
+      } catch (error) {
+        throw new TRPCError3({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Erro ao obter token da Memed"
+        });
+      }
+    }),
+    // Salvar link da receita gerada pela Memed
+    salvarReceitaMemed: medicoProcedure.input(
+      z2.object({
+        atendimentoId: z2.string(),
+        receitaUrl: z2.string(),
+        receitaId: z2.string().optional()
+      })
+    ).mutation(async ({ input }) => {
+      const sucesso = await salvarProntuario(input.atendimentoId, {
+        receitaPdfUrl: input.receitaUrl
+      });
+      if (!sucesso) {
+        throw new TRPCError3({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Erro ao salvar link da receita"
+        });
+      }
+      await atualizarStatusAtendimento(input.atendimentoId, "APROVADO");
+      return { sucesso: true };
+    }),
+    // Recusar atendimento
+    recusar: medicoProcedure.input(z2.string()).mutation(async ({ input }) => {
+      const sucesso = await atualizarStatusAtendimento(input, "RECUSADO");
+      if (!sucesso) {
+        throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao recusar atendimento" });
+      }
+      return { sucesso: true, mensagem: "Atendimento recusado" };
+    }),
+    // Obter URL da receita
+    obterReceita: medicoProcedure.input(z2.string()).query(async ({ input }) => {
+      const prontuario = await obterProntuario(input);
+      if (!prontuario?.receitaPdfUrl) {
+        throw new TRPCError3({ code: "NOT_FOUND", message: "Receita n\xE3o encontrada" });
+      }
+      return { url: prontuario.receitaPdfUrl };
+    })
+  })
+});
+
+// server/_core/context.ts
+async function createContext(opts) {
+  let user = null;
+  try {
+    user = await sdk.authenticateRequest(opts.req);
+  } catch (error) {
+    user = null;
+  }
+  return {
+    req: opts.req,
+    res: opts.res,
+    user
+  };
+}
+
+// server/_core/vite.ts
+import express from "express";
+import fs2 from "fs";
+import { nanoid } from "nanoid";
+import path2 from "path";
+import { createServer as createViteServer } from "vite";
+
+// vite.config.ts
+import { jsxLocPlugin } from "@builder.io/vite-plugin-jsx-loc";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import fs from "node:fs";
+import path from "node:path";
+import { defineConfig } from "vite";
+import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
+var PROJECT_ROOT = import.meta.dirname;
+var LOG_DIR = path.join(PROJECT_ROOT, ".manus-logs");
+var MAX_LOG_SIZE_BYTES = 1 * 1024 * 1024;
+var TRIM_TARGET_BYTES = Math.floor(MAX_LOG_SIZE_BYTES * 0.6);
+function ensureLogDir() {
+  if (!fs.existsSync(LOG_DIR)) {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+  }
+}
+function trimLogFile(logPath, maxSize) {
+  try {
+    if (!fs.existsSync(logPath) || fs.statSync(logPath).size <= maxSize) {
+      return;
+    }
+    const lines = fs.readFileSync(logPath, "utf-8").split("\n");
+    const keptLines = [];
+    let keptBytes = 0;
+    const targetSize = TRIM_TARGET_BYTES;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const lineBytes = Buffer.byteLength(`${lines[i]}
+`, "utf-8");
+      if (keptBytes + lineBytes > targetSize) break;
+      keptLines.unshift(lines[i]);
+      keptBytes += lineBytes;
+    }
+    fs.writeFileSync(logPath, keptLines.join("\n"), "utf-8");
+  } catch {
+  }
+}
+function writeToLogFile(source, entries) {
+  if (entries.length === 0) return;
+  ensureLogDir();
+  const logPath = path.join(LOG_DIR, `${source}.log`);
+  const lines = entries.map((entry) => {
+    const ts = (/* @__PURE__ */ new Date()).toISOString();
+    return `[${ts}] ${JSON.stringify(entry)}`;
+  });
+  fs.appendFileSync(logPath, `${lines.join("\n")}
+`, "utf-8");
+  trimLogFile(logPath, MAX_LOG_SIZE_BYTES);
+}
+function vitePluginManusDebugCollector() {
+  return {
+    name: "manus-debug-collector",
+    transformIndexHtml(html) {
+      if (process.env.NODE_ENV === "production") {
+        return html;
+      }
+      return {
+        html,
+        tags: [
+          {
+            tag: "script",
+            attrs: {
+              src: "/__manus__/debug-collector.js",
+              defer: true
+            },
+            injectTo: "head"
+          }
+        ]
+      };
+    },
+    configureServer(server) {
+      server.middlewares.use("/__manus__/logs", (req, res, next) => {
+        if (req.method !== "POST") {
+          return next();
+        }
+        const handlePayload = (payload) => {
+          if (payload.consoleLogs?.length > 0) {
+            writeToLogFile("browserConsole", payload.consoleLogs);
+          }
+          if (payload.networkRequests?.length > 0) {
+            writeToLogFile("networkRequests", payload.networkRequests);
+          }
+          if (payload.sessionEvents?.length > 0) {
+            writeToLogFile("sessionReplay", payload.sessionEvents);
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ success: true }));
+        };
+        const reqBody = req.body;
+        if (reqBody && typeof reqBody === "object") {
+          try {
+            handlePayload(reqBody);
+          } catch (e) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ success: false, error: String(e) }));
+          }
+          return;
+        }
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk.toString();
+        });
+        req.on("end", () => {
+          try {
+            const payload = JSON.parse(body);
+            handlePayload(payload);
+          } catch (e) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ success: false, error: String(e) }));
+          }
+        });
+      });
+    }
+  };
+}
+var plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+var vite_config_default = defineConfig({
+  plugins,
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@assets": path.resolve(import.meta.dirname, "attached_assets")
+    }
+  },
+  envDir: path.resolve(import.meta.dirname),
+  root: path.resolve(import.meta.dirname, "client"),
+  publicDir: path.resolve(import.meta.dirname, "client", "public"),
+  build: {
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    emptyOutDir: true
+  },
+  server: {
+    host: true,
+    allowedHosts: [
+      ".manuspre.computer",
+      ".manus.computer",
+      ".manus-asia.computer",
+      ".manuscomputer.ai",
+      ".manusvm.computer",
+      "localhost",
+      "127.0.0.1"
+    ],
+    fs: {
+      strict: true,
+      deny: ["**/.*"]
+    }
+  }
+});
+
+// server/_core/vite.ts
+async function setupVite(app, server) {
+  const serverOptions = {
+    middlewareMode: true,
+    hmr: { server },
+    allowedHosts: true
+  };
+  const vite = await createViteServer({
+    ...vite_config_default,
+    configFile: false,
+    server: serverOptions,
+    appType: "custom"
+  });
+  app.use(vite.middlewares);
+  app.use("*", async (req, res, next) => {
+    const url = req.originalUrl;
+    try {
+      const clientTemplate = path2.resolve(
+        import.meta.dirname,
+        "../..",
+        "client",
+        "index.html"
+      );
+      let template = await fs2.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid()}"`
+      );
+      const page = await vite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (e) {
+      vite.ssrFixStacktrace(e);
+      next(e);
+    }
+  });
+}
+function serveStatic(app) {
+  const distPath = process.env.NODE_ENV === "development" ? path2.resolve(import.meta.dirname, "../..", "dist", "public") : path2.resolve(import.meta.dirname, "public");
+  if (!fs2.existsSync(distPath)) {
+    console.error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`
+    );
+  }
+  app.use(express.static(distPath));
+  app.use("*", (_req, res) => {
+    res.sendFile(path2.resolve(distPath, "index.html"));
+  });
+}
+
+// server/_core/index.ts
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.listen(port, () => {
+      server.close(() => resolve(true));
+    });
+    server.on("error", () => resolve(false));
+  });
+}
+async function findAvailablePort(startPort = 3e3) {
+  for (let port = startPort; port < startPort + 20; port++) {
+    if (await isPortAvailable(port)) {
+      return port;
+    }
+  }
+  throw new Error(`No available port found starting from ${startPort}`);
+}
+async function startServer() {
+  const app = express2();
+  const server = createServer(app);
+  app.use(express2.json({ limit: "50mb" }));
+  app.use(express2.urlencoded({ limit: "50mb", extended: true }));
+  registerStorageProxy(app);
+  registerOAuthRoutes(app);
+  app.use(
+    "/api/trpc",
+    createExpressMiddleware({
+      router: appRouter,
+      createContext
+    })
+  );
+  if (process.env.NODE_ENV === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
+  const preferredPort = parseInt(process.env.PORT || "3000");
+  const port = await findAvailablePort(preferredPort);
+  if (port !== preferredPort) {
+    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+  }
+  server.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}/`);
+  });
+}
+startServer().catch(console.error);
