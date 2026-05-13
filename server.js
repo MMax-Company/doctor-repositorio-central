@@ -10,14 +10,14 @@ const path = require('path')
 const { v4: uuidv4 } = require('uuid')
 const PDFDocument = require('pdfkit')
 const QRCode = require('qrcode')
+const axios = require('axios')
 
 // ========================
 // 🔌 IMPORTAR MÓDULO DE BANCO (PostgreSQL)
 // ========================
-const db = require('./db')
+const db = require('./db-supabase-hybrid')
 const { createExpressMiddleware } = require('@trpc/server/adapters/express')
-const { appRouter } = require('./dashboard-medico/server/routers')
-const { createContext } = require('./dashboard-medico/server/_core/context')
+const { obterTokenParaFrontend } = require('./memed')
 
 // ========================
 // 🚀 CONFIGURAÇÃO DO EXPRESS
@@ -792,6 +792,24 @@ app.get('/api/atendimento/:id', auth, async (req, res) => {
     console.error('❌ Erro ao buscar atendimento:', e.message)
     res.status(500).json({ error: 'Erro ao carregar atendimento' })
   }
+})
+
+app.get('/api/suporte/pendentes', async (req, res) => {
+
+  try {
+
+    res.json([])
+
+  } catch (e) {
+
+    console.error(e)
+
+    res.status(500).json({
+      erro: 'Erro ao carregar suportes'
+    })
+
+  }
+
 })
 
 // ========================
@@ -1769,68 +1787,315 @@ app.get('/painel-medico', (req, res) => {
     } catch(e) { alert('Erro ao carregar prontuário'); }
   }
 
-  async function aprovarConsulta(id) {
-    const medicamento = document.getElementById('medicamento')?.value || '';
-    const posologia = document.getElementById('posologia')?.value || '';
-    const conduta = document.getElementById('conduta')?.value || '';
-    
-    if (!confirm('Confirmar aprovação? O paciente receberá a receita.')) return;
-    
-    try {
-      const res = await fetch(window.location.origin + '/api/decisao/' + id, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({
-          decisao: 'APROVAR',
-          orientacoes: conduta,
-          medicamento: medicamento,
-          posologia: posologia
-        })
-      });
-      
-      if (res.ok) {
-        alert('✅ Consulta aprovada com sucesso!');
-        fecharModal();
-        carregarDados();
-      } else { alert('Erro ao aprovar consulta'); }
-    } catch(e) { alert('Erro ao aprovar consulta'); }
-  }
+  async function abrirMemedPrescricao(atendimentoId) {
 
-  async function recusarConsulta(id) {
-    const motivo = prompt('Motivo da recusa (opcional):');
-    if (!confirm('❌ Tem certeza que deseja recusar este atendimento?')) return;
-    
-    try {
-      const res = await fetch(window.location.origin + '/api/decisao/' + id, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ decisao: 'RECUSAR', orientacoes: motivo || 'Recusado pelo médico' })
-      });
-      
-      if (res.ok) {
-        alert('❌ Consulta recusada');
-        carregarDados();
-      } else { alert('Erro ao recusar consulta'); }
-    } catch(e) { alert('Erro ao recusar consulta'); }
-  }
+  try {
 
-  function fecharModal() {
-    document.getElementById('modal').style.display = 'none';
-  }
+    console.log('🚀 Inicializando Memed')
 
-  setInterval(() => {
-    if (document.getElementById('dashboard').style.display === 'block') {
-      carregarDados();
+    const atendimento =
+      atendimentosData.find(
+        a => a.id === atendimentoId
+      )
+
+    if (!atendimento) {
+
+      alert('Atendimento não encontrado')
+      return
+
     }
-  }, 30000);
+
+    if (typeof MdHub === 'undefined') {
+
+      alert('Memed não carregada')
+      return
+
+    }
+
+    MdHub.command.send(
+      'plataforma.prescricao',
+      {
+
+        integration: 'DoctorPrescreve',
+
+        paciente: {
+          nome:
+            atendimento.paciente_nome || 'Paciente',
+
+          telefone:
+            atendimento.paciente_telefone || '',
+
+          sexo: 'NI'
+        },
+
+        prescricao: {
+          medicamento:
+            document.getElementById('medicamento')?.value || '',
+
+          posologia:
+            document.getElementById('posologia')?.value || ''
+        },
+
+        callback: async function(data) {
+
+          console.log(
+            '✅ Receita Memed finalizada',
+            data
+          )
+
+          try {
+
+            const medicamento =
+              document.getElementById('medicamento')?.value || ''
+
+            const posologia =
+              document.getElementById('posologia')?.value || ''
+
+            const conduta =
+              document.getElementById('conduta')?.value || ''
+
+            const receitaId =
+              data?.id ||
+              data?.prescricao_id ||
+              null
+
+            const response =
+              await fetch(
+                window.location.origin +
+                '/api/decisao/' +
+                atendimentoId,
+                {
+                  method: 'POST',
+
+                  headers: {
+                    'Content-Type':
+                      'application/json',
+
+                    'Authorization':
+                      'Bearer ' + token
+                  },
+
+                  body: JSON.stringify({
+
+                    decisao: 'APROVAR',
+
+                    orientacoes: conduta,
+
+                    medicamento,
+
+                    posologia,
+
+                    receita_memed_id:
+                      receitaId,
+
+                    memed_payload: data
+                  })
+                }
+              )
+
+            if (response.ok) {
+
+              alert(
+                '✅ Receita emitida com sucesso!'
+              )
+
+              fecharModal()
+
+              carregarDados()
+
+            } else {
+
+              alert(
+                'Erro ao salvar decisão'
+              )
+
+            }
+
+          } catch (e) {
+
+            console.error(e)
+
+            alert(
+              'Erro ao finalizar receita'
+            )
+
+          }
+
+        }
+
+      }
+    )
+
+  } catch (e) {
+
+    console.error(e)
+
+    alert(
+      'Erro ao abrir Memed'
+    )
+
+  }
+
+}
+
+async function aprovarConsulta(id) {
+
+  if (
+    !confirm(
+      'Abrir prescrição digital Memed?'
+    )
+  ) return
+
+  abrirMemedPrescricao(id)
+
+}
+
+async function recusarConsulta(id) {
+
+  const motivo =
+    prompt(
+      'Motivo da recusa (opcional):'
+    )
+
+  if (
+    !confirm(
+      '❌ Tem certeza que deseja recusar este atendimento?'
+    )
+  ) return
+
+  try {
+
+    const res =
+      await fetch(
+        window.location.origin +
+        '/api/decisao/' +
+        id,
+        {
+          method: 'POST',
+
+          headers: {
+            'Content-Type':
+              'application/json',
+
+            'Authorization':
+              'Bearer ' + token
+          },
+
+          body: JSON.stringify({
+            decisao: 'RECUSAR',
+            orientacoes:
+              motivo ||
+              'Recusado pelo médico'
+          })
+        }
+      )
+
+    if (res.ok) {
+
+      alert('❌ Consulta recusada')
+
+      carregarDados()
+
+    } else {
+
+      alert('Erro ao recusar consulta')
+
+    }
+
+  } catch(e) {
+
+    alert(
+      'Erro ao recusar consulta'
+    )
+
+  }
+
+}
+
+function fecharModal() {
+
+  document.getElementById(
+    'modal'
+  ).style.display = 'none'
+
+}
+
+// ========================
+// 🚀 INIT MEMED
+// ========================
+
+window.addEventListener(
+  'load',
+  () => {
+
+    if (
+      typeof MdHub !== 'undefined'
+    ) {
+
+      console.log(
+        '✅ Memed carregada'
+      )
+
+      try {
+
+        MdHub.init({
+
+          apiKey:
+            '${process.env.MEMED_API_KEY}',
+
+          secretKey:
+            '${process.env.MEMED_SECRET_KEY}'
+        })
+
+        console.log(
+          '✅ Memed inicializada'
+        )
+
+      } catch(e) {
+
+        console.error(
+          'Erro init Memed',
+          e
+        )
+
+      }
+
+    } else {
+
+      console.error(
+        '❌ MdHub não carregou'
+      )
+
+    }
+
+  }
+)
+
+setInterval(() => {
+
+  if (
+    document.getElementById(
+      'dashboard'
+    ).style.display === 'block'
+  ) {
+
+    carregarDados()
+
+  }
+
+}, 30000)
+
+</script>
+
+<script
+  type="text/javascript"
+  src="https://integrations.memed.com.br/modulos/plataforma.js">
 </script>
 
 </body>
 </html>
   `)
 })
-
-
 
 // ========================
 // 📜 HISTÓRICO DE DECISÕES (Ponto 7)
@@ -2166,6 +2431,31 @@ app.get('/api/prontuario/:id/export', auth, async (req, res) => {
 })
 
 // ========================
+// 🔐 MEMED: OBTER TOKEN PARA FRONTEND
+// ========================
+app.get('/api/memed/token', auth, async (req, res) => {
+  try {
+    const token = await memed.obterTokenParaFrontend()
+    res.json({ success: true, token })
+  } catch (error) {
+    console.error('❌ Erro ao obter token Memed:', error.message)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ========================
+// 🧪 MEMED: VERIFICAR STATUS DA CONTA
+// ========================
+app.get('/api/memed/status', auth, async (req, res) => {
+  try {
+    const status = await memed.verificarStatusConta()
+    res.json(status)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ========================
 // 📄 RECEITA MÉDICA (Ponto 5: Usando dado real)
 // ========================
 app.post('/api/receita', auth, async (req, res) => {
@@ -2457,6 +2747,67 @@ app.post('/api/receita/:id/renovar', auth, async (req, res) => {
     res.json({ success: true, mensagem: 'Receita renovada', nova_receita: { id: novoId, numero: novaReceita.numero, pdf_url: `${BASE_URL}/api/receita/${novoId}/pdf` } })
   } catch (e) {
     res.status(500).json({ error: 'Erro ao renovar receita' })
+  }
+})
+
+// ========================
+// 🔔 MEMED: WEBHOOK (prescription.completed)
+// ========================
+app.post('/webhooks/memed', express.json(), async (req, res) => {
+  try {
+    const event = req.body
+    
+    console.log('📡 Webhook Memed recebido:', event.type || event.event)
+    
+    // Verificar assinatura (se disponível)
+    const signature = req.headers['x-memed-signature']
+    if (signature && process.env.MEMED_WEBHOOK_SECRET) {
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.MEMED_WEBHOOK_SECRET)
+        .update(JSON.stringify(event))
+        .digest('hex')
+      
+      if (signature !== expectedSignature) {
+        console.warn('⚠️ Assinatura do webhook inválida')
+        return res.status(401).json({ error: 'Assinatura inválida' })
+      }
+    }
+    
+    // Processar evento de prescrição concluída
+    if (event.type === 'prescription.completed' || event.event === 'prescription.completed') {
+      const prescriptionData = event.data || event.prescription
+      const { external_id, pdf_url, patient_external_id } = prescriptionData
+      
+      // Buscar atendimento pelo external_id salvo
+      const atendimento = await db.buscarAtendimentoPorId(patient_external_id)
+      
+      if (atendimento) {
+        // Atualizar status e salvar PDF
+        await db.atualizarStatus(atendimento.id, ESTADOS_FLUXO.RECEITA_EMITIDA, {
+          memed_prescription_id: external_id,
+          memed_receita_url: pdf_url,
+          receita_emitida_em: new Date().toISOString()
+        })
+        
+        console.log(`✅ Receita Memed registrada: ${external_id} para atendimento ${atendimento.id}`)
+        
+        // Enviar WhatsApp (via n8n)
+        const telefone = safeDecrypt(atendimento.paciente_telefone)
+        const nome = safeDecrypt(atendimento.paciente_nome)
+        if (telefone) {
+          await enviarWhatsAppOficial(telefone, 
+            `✅ *RECEITA APROVADA* ✅\n\nOlá ${nome},\n\nSua receita foi assinada digitalmente!\n\n📄 Baixe aqui: ${pdf_url}\n\n👨‍⚕️ Doctor Prescreve`
+          )
+        }
+      } else {
+        console.warn(`⚠️ Atendimento não encontrado para patient_external_id: ${patient_external_id}`)
+      }
+    }
+    
+    res.status(200).send('OK')
+  } catch (error) {
+    console.error('❌ Erro no webhook Memed:', error.message)
+    res.status(400).send('Bad Request')
   }
 })
 
