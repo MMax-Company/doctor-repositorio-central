@@ -1792,7 +1792,7 @@ app.get('/painel-medico', (req, res) => {
           </div>
           <div class="patient-info">
             <div class="info-item"><i class="fas fa-phone"></i> \${a.paciente_telefone || 'Não informado'}</div>
-             <div class="info-item"><i class="fas fa-notes-medical"></i> ${a.doencas || a.doenca || 'Não informada'}</div>
+             <div class="info-item"><i class="fas fa-notes-medical"></i> \${a.doencas || a.doenca || 'Não informada'}</div>
             <div class="info-item"><i class="fas fa-calendar-alt"></i> \${new Date(a.criado_em).toLocaleDateString()}</div>
           </div>
           <div class="card-actions">

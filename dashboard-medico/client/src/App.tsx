@@ -1,7 +1,11 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
+<<<<<<< HEAD
 import { Route, Switch, Router as WouterRouter } from "wouter";
+=======
+import { Route, Switch, Router } from "wouter";
+>>>>>>> 9c84c5b (fix: corrige roteamento do painel)
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -31,6 +35,7 @@ function AppRouter() {
 
 function App() {
   return (
+<<<<<<< HEAD
     <WouterRouter base="/painel-medico">
       <ErrorBoundary>
         <ThemeProvider defaultTheme="light">
@@ -41,6 +46,20 @@ function App() {
         </ThemeProvider>
       </ErrorBoundary>
     </WouterRouter>
+=======
+    <Router base="/painel-medico">
+      <ErrorBoundary>
+        <ThemeProvider
+          defaultTheme="light"
+        >
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </ThemeProvider>
+      </ErrorBoundary>
+    </Router>
+>>>>>>> 9c84c5b (fix: corrige roteamento do painel)
   );
 }
 
