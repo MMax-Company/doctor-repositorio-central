@@ -2150,7 +2150,7 @@ window.addEventListener('load', () => {
       .then(data => {
         if (data.token) {
           MdHub.init({
-            apiKey: '${MEMED_API_KEY}',
+            apiKey: process.env.MEMED_API_KEY
             token: data.token  // ← token temporário, não a secret key!
           })
           console.log('✅ Memed inicializada com token seguro')
