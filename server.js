@@ -1856,109 +1856,217 @@ function renderizarColunas() {
   }
 
   function renderizarColuna(elementId, lista, tipo) {
-    const container = document.getElementById(elementId);
-    if (!lista || lista.length === 0) {
-      container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Vazio</p></div>';
-      return;
-    }
 
-    let html = '';
-    lista.forEach(a => {
-      let statusClass = 'status-' + tipo;
-      let statusText = tipo === 'fila' ? '⏳ Na Fila' : tipo === 'atendimento' ? '👨‍⚕️ Atendendo' : '📝 Decisão';
-      
-      html += \`
-        <div class="patient-card-premium">
-          <div class="card-header">
-            <div>
-              <div class="patient-name">\${a.paciente_nome || 'Nome não informado'}</div>
-              <div class="patient-id">ID: \${a.id.substring(0, 12)}...</div>
-            </div>
-            <span class="status-badge \${statusClass}">\${statusText}</span>
-          </div>
-          <div class="patient-info">
-  <div class="info-item">
-    <i class="fas fa-phone"></i>
-    \${a.paciente_telefone || 'Não informado'}
-  </div>
+  const container = document.getElementById(elementId)
 
-  <div class="info-item">
-    <i class="fas fa-notes-medical"></i>
-    \${a.doencas || a.doenca || 'Não informada'}
-  </div>
+  if (!lista || lista.length === 0) {
 
-  <div class="info-item">
-    <i class="fas fa-calendar-alt"></i>
-    \${new Date(a.criado_em).toLocaleDateString()}
-  </div>
-</div>
+    container.innerHTML =
+      '<div class="empty-state">' +
+      '<i class="fas fa-inbox"></i>' +
+      '<p>Vazio</p>' +
+      '</div>'
 
-<div class="form-group">
-  <label>
-    <i class="fas fa-notes-medical"></i>
-    Doença/Queixa
-  </label>
-
-  <textarea disabled>\${a.doencas || a.doenca || 'Não informado'}</textarea>
-</div>
-
-<div class="form-group">
-  <label>
-    <i class="fas fa-capsules"></i>
-    Medicamento Recomendado
-  </label>
-
-  <input
-    type="text"
-    id="medicamento"
-    value="\${a.medicacao_em_uso || ''}"
-    placeholder="Ex: Losartana 50mg"
-  >
-</div>
-          <div class="card-actions">
-      \`;
-
-      if (tipo === 'fila') {
-        html += \`<button class="btn-premium btn-warning btn-pegar-proximo"><i class="fas fa-hand-holding-medical"></i> Pegar Próximo</button>\`;
-      } else if (tipo === 'atendimento') {
-        html += \`<button class="btn-premium btn-primary btn-abrir-prontuario" data-id="\${a.id}"><i class="fas fa-file-alt"></i> Prontuário</button>\`;
-      } else {
-        html += \`
-          <button class="btn-premium btn-success btn-ver-decisao" data-id="\${a.id}"><i class="fas fa-check"></i> Aprovar</button>
-          <button class="btn-premium btn-danger btn-recusar-consulta" data-id="\${a.id}"><i class="fas fa-times"></i> Recusar</button>
-        \`;
-      }
-
-      html += \`</div></div>\`;
-    });
-    container.innerHTML = html;
-    
-    // Attach events to dynamic buttons
-    container.querySelectorAll('.btn-pegar-proximo').forEach(btn => btn.addEventListener('click', pegarProximo));
-    container.querySelectorAll('.btn-abrir-prontuario').forEach(btn => btn.addEventListener('click', function() { abrirProntuario(this.dataset.id); }));
-    container.querySelectorAll('.btn-ver-decisao').forEach(btn => btn.addEventListener('click', function() { verDecisao(this.dataset.id); }));
-    container.querySelectorAll('.btn-recusar-consulta').forEach(btn => btn.addEventListener('click', function() { recusarConsulta(this.dataset.id); }));
+    return
   }
 
-  async function pegarProximo() {
+  let html = ''
+
+  lista.forEach(a => {
+
+    let statusClass = 'status-' + tipo
+
+    let statusText =
+      tipo === 'fila'
+        ? '⏳ Na Fila'
+        : tipo === 'atendimento'
+          ? '👨‍⚕️ Atendendo'
+          : '📝 Decisão'
+
+    html += `
+      <div class="patient-card-premium">
+
+        <><div class="card-header">
+      <div>
+        <div class="patient-name">
+          ${a.paciente_nome || 'Nome não informado'}
+        </div>
+
+        <div class="patient-id">
+          ID: ${a.id.substring(0, 12)}...
+        </div>
+      </div>
+
+      <span class="status-badge ${statusClass}">
+        ${statusText}
+      </span>
+    </div><div class="patient-info">
+
+        <div class="info-item">
+          <i class="fas fa-phone"></i>
+          ${a.paciente_telefone || 'Não informado'}
+        </div>
+
+        <div class="info-item">
+          <i class="fas fa-notes-medical"></i>
+          ${(a.condicao && a.condicao.doenca) || a.doencas || a.doenca || 'Não informada'}
+        </div>
+
+        <div class="info-item">
+          <i class="fas fa-calendar-alt"></i>
+          ${new Date(a.criado_em).toLocaleDateString()}
+        </div>
+
+      </div><div class="form-group">
+
+        <label>
+          <i class="fas fa-notes-medical"></i>
+          Doença/Queixa
+        </label>
+
+        <textarea disabled>
+          ${(a.condicao && a.condicao.doenca) || a.doencas || a.doenca || 'Não informado'}
+        </textarea>
+
+      </div><div class="form-group">
+
+        <label>
+          <i class="fas fa-capsules"></i>
+          Medicamento Recomendado
+        </label>
+
+        <input
+          type="text"
+          id="medicamento-${a.id}"
+          value="${a.medicacao_em_uso || ''}"
+          placeholder="Ex: Losartana 50mg"
+        >
+
+        </></div><div class="card-actions">
+        `
+
+        // ========================
+        // ⏳ FILA
+        // ========================
+
+        if (tipo === 'fila') {html += `
+        <button
+          class="btn-premium btn-warning btn-pegar-proximo"
+        >
+          <i class="fas fa-hand-holding-medical"></i>
+          Pegar Próximo
+        </button>
+      `}
+
+    // ========================
+        // 👨‍⚕️ EM ATENDIMENTO
+        // ========================
+
+        else if (tipo === 'atendimento') {html += `
+        <button
+          class="btn-premium btn-primary btn-abrir-prontuario"
+          data-id="${a.id}"
+        >
+          <i class="fas fa-file-alt"></i>
+          Prontuário
+        </button>
+      `}
+
+    // ========================
+        // 📝 DECISÃO
+        // ========================
+
+        else {html += `
+        <button
+          class="btn-premium btn-success btn-ver-decisao"
+          data-id="${a.id}"
+        >
+          <i class="fas fa-check"></i>
+          Aprovar
+        </button>
+
+        <button
+          class="btn-premium btn-danger btn-recusar-consulta"
+          data-id="${a.id}"
+        >
+          <i class="fas fa-times"></i>
+          Recusar
+        </button>
+      `}
+
+        html += `
+      </div></>
+      </div>
+    `
+  })
+
+  container.innerHTML = html
+
+  // ========================
+  // 🎯 EVENTOS DINÂMICOS
+  // ========================
+
+  container
+    .querySelectorAll('.btn-pegar-proximo')
+    .forEach(btn =>
+      btn.addEventListener('click', pegarProximo)
+    )
+
+  container
+    .querySelectorAll('.btn-abrir-prontuario')
+    .forEach(btn =>
+      btn.addEventListener('click', function () {
+        abrirProntuario(this.dataset.id)
+      })
+    )
+
+async function pegarProximo() {
+
   try {
-    const res = await fetch('/api/fila/pegar-proximo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ medicoId: 'medico_' + Date.now() })
-    });
-    const data = await res.json();
-    
-    // CORREÇÃO: "success" ao invés de "sucesso"
+
+    const res = await fetch(
+      '/api/fila/pegar-proximo',
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+
+        body: JSON.stringify({
+          medicoId: 'medico_' + Date.now()
+        })
+      }
+    )
+
+    const data = await res.json()
+
+    // ✅ CORREÇÃO
     if (data.success) {
-      window.location.href = '/prontuario/' + data.atendimento.id;
+
+      window.location.href =
+        '/prontuario/' + data.atendimento.id
+
     } else {
-      alert('Fila vazia ou caso já em atendimento');
-      carregarDados();
+
+      alert(
+        'Fila vazia ou caso já em atendimento'
+      )
+
+      carregarDados()
     }
-  } catch(e) { 
-    console.error('Erro pegar próximo:', e);
-    alert('Erro: ' + e.message); 
+
+  } catch (e) {
+
+    console.error(
+      'Erro pegar próximo:',
+      e
+    )
+
+    alert(
+      'Erro: ' + e.message
+    )
   }
 }
 
