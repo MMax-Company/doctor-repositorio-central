@@ -998,7 +998,6 @@ app.get('/painel-medico', (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Doctor Prescreve - Painel Médico Premium</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
@@ -1124,19 +1123,6 @@ app.get('/painel-medico', (req, res) => {
       margin: 0 auto;
     }
 
-    /* Header Premium */
-    .premium-header {
-      background: white;
-      border-radius: 24px;
-      padding: 24px 32px;
-      margin-bottom: 32px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-      border: 1px solid #f1f5f9;
-    }
-
     .logo-area h1 {
       font-size: 24px;
       font-weight: 800;
@@ -1172,31 +1158,6 @@ app.get('/painel-medico', (req, res) => {
     .logout-btn:hover {
       background: #fecaca;
       transform: translateY(-2px);
-    }
-
-    /* Stats Grid Premium */
-    .stats-premium {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 24px;
-      margin-bottom: 32px;
-    }
-
-    .stat-card-premium {
-      background: white;
-      border-radius: 24px;
-      padding: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-      border: 1px solid #f1f5f9;
-    }
-
-    .stat-card-premium:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     }
 
     .stat-info h3 {
@@ -1326,22 +1287,6 @@ app.get('/painel-medico', (req, res) => {
       font-weight: 700;
     }
 
-    /* Patient Cards */
-    .patient-card-premium {
-      background: white;
-      border-radius: 20px;
-      padding: 20px;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-      border: 1px solid transparent;
-    }
-
-    .patient-card-premium:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 20px -6px rgba(0, 0, 0, 0.1);
-      border-color: #e2e8f0;
-    }
-
     .card-header {
       display: flex;
       justify-content: space-between;
@@ -1402,21 +1347,6 @@ app.get('/painel-medico', (req, res) => {
       border-top: 1px solid #f1f5f9;
     }
 
-    .btn-premium {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      border-radius: 12px;
-      font-weight: 700;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-
     .btn-primary { background: #3b82f6; color: white; }
     .btn-primary:hover { background: #2563eb; }
     .btn-success { background: #10b981; color: white; }
@@ -1425,21 +1355,6 @@ app.get('/painel-medico', (req, res) => {
     .btn-danger:hover { background: #dc2626; }
     .btn-warning { background: #f59e0b; color: white; }
     .btn-warning:hover { background: #d97706; }
-
-    /* Modal Premium */
-    .modal-premium {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(8px);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
-    }
 
     .modal-content {
       background: white;
@@ -1573,67 +1488,11 @@ app.get('/painel-medico', (req, res) => {
   </div>
 </div>
 
-<!-- Dashboard -->
-<div id="dashboard" class="dashboard-container">
-  <div class="premium-header">
-    <div class="logo-area">
-      <h1><i class="fas fa-shield-halved"></i> Doctor Prescreve</h1>
-      <p>Sistema de Telemedicina & Gestão Clínica</p>
-    </div>
-    <button class="logout-btn" id="logoutBtn">
-      <i class="fas fa-power-off"></i> Sair do Sistema
-    </button>
-  </div>
-
-  <div class="stats-premium" id="stats">
-    <!-- Stats cards loaded via JS -->
-  </div>
 
   <div class="suporte-section">
     <h3><i class="fas fa-headset" style="color: #f59e0b;"></i> CHAMADOS DE SUPORTE</h3>
     <div id="suportesPendentes">Carregando chamados...</div>
   </div>
-
-  <div class="columns-container">
-    <div class="column">
-      <div class="column-header">
-        <h3><i class="fas fa-clock"></i> Fila de Espera</h3>
-        <span class="badge-count" id="countFila">0</span>
-      </div>
-      <div id="filaColuna"></div>
-    </div>
-    <div class="column">
-      <div class="column-header">
-        <h3><i class="fas fa-user-md"></i> Em Atendimento</h3>
-        <span class="badge-count" id="countAtendimento">0</span>
-      </div>
-      <div id="atendimentoColuna"></div>
-    </div>
-    <div class="column">
-      <div class="column-header">
-        <h3><i class="fas fa-check-double"></i> Pronto para Decisão</h3>
-        <span class="badge-count" id="countDecisao">0</span>
-      </div>
-      <div id="decisaoColuna"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal -->
-<div id="modal" class="modal-premium">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3><i class="fas fa-file-medical"></i> Avaliação Médica</h3>
-      <button class="close-modal" id="closeModalBtn">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div id="modalContent"></div>
-      <div id="modalActions" style="margin-top: 32px; display: flex; gap: 16px;">
-         <!-- Actions added dynamically -->
-      </div>
-    </div>
-  </div>
-</div>
 
 <script>
   let token = localStorage.getItem('token');
@@ -1746,71 +1605,6 @@ app.get('/painel-medico', (req, res) => {
     }
   }
 
-  function atualizarEstatisticas(stats) {
-    const statsHtml = \`
-      <div class="stat-card-premium">
-        <div class="stat-info"><h3>\${stats.total || 0}</h3><p>Total Geral</p></div>
-        <div class="stat-icon"><i class="fas fa-folder-open"></i></div>
-      </div>
-      <div class="stat-card-premium">
-        <div class="stat-info"><h3>\${stats.naFila || 0}</h3><p>Aguardando</p></div>
-        <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
-      </div>
-      <div class="stat-card-premium">
-        <div class="stat-info"><h3>\${stats.aprovados || 0}</h3><p>Aprovados</p></div>
-        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-      </div>
-      <div class="stat-card-premium">
-        <div class="stat-info"><h3>\${stats.recusados || 0}</h3><p>Recusados</p></div>
-        <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
-      </div>
-    \`;
-    document.getElementById('stats').innerHTML = statsHtml;
-  }
-
-  async function carregarSuportes() {
-    try {
-      const res = await fetch('/api/suporte/pendentes', {
-        headers: token ? { 'Authorization': 'Bearer ' + token } : {}
-      });
-      const suportes = await res.json();
-      let html = '';
-      
-      if (!suportes || suportes.length === 0) {
-        html = '<div class="empty-state" style="grid-column: 1/-1;"><i class="fas fa-check-circle"></i><p>Nenhum chamado pendente</p></div>';
-      } else {
-        suportes.forEach(s => {
-          html += \`
-            <div class="suporte-card">
-              <div class="suporte-header">
-                <span class="suporte-nome">👤 \${s.nome || 'Paciente'}</span>
-                <span class="suporte-telefone">\${s.telefone}</span>
-              </div>
-              <div class="suporte-mensagem">\${s.mensagem || 'Aguardando atendimento'}</div>
-              <div class="suporte-tempo"><i class="far fa-clock"></i> Há \${formatarTempo(s.criado_em)}</div>
-              <div style="margin-top: 15px;">
-                <button class="btn-premium btn-warning btn-atender-suporte" data-id="\${s.id}" data-tel="\${s.telefone}" data-nome="\${s.nome || 'Paciente'}">
-                  <i class="fas fa-reply"></i> Atender Chamado
-                </button>
-              </div>
-            </div>
-          \`;
-        });
-      }
-      document.getElementById('suportesPendentes').innerHTML = html;
-      
-      // Attach events to support buttons
-      document.querySelectorAll('.btn-atender-suporte').forEach(btn => {
-        btn.addEventListener('click', function() {
-          atenderSuporte(this.dataset.id, this.dataset.tel, this.dataset.nome);
-        });
-      });
-    } catch(e) {
-      console.error('Erro ao carregar suportes:', e);
-      document.getElementById('suportesPendentes').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Erro ao carregar chamados</p></div>';
-    }
-  }
-
   function formatarTempo(dataCriacao) {
     if (!dataCriacao) return 'agora';
     const criado = new Date(dataCriacao);
@@ -1882,123 +1676,6 @@ function renderizarColunas() {
         : tipo === 'atendimento'
           ? '👨‍⚕️ Atendendo'
           : '📝 Decisão'
-
-    html += `
-      <div class="patient-card-premium">
-
-        <><div class="card-header">
-      <div>
-        <div class="patient-name">
-          ${a.paciente_nome || 'Nome não informado'}
-        </div>
-
-        <div class="patient-id">
-          ID: ${a.id.substring(0, 12)}...
-        </div>
-      </div>
-
-      <span class="status-badge ${statusClass}">
-        ${statusText}
-      </span>
-    </div><div class="patient-info">
-
-        <div class="info-item">
-          <i class="fas fa-phone"></i>
-          ${a.paciente_telefone || 'Não informado'}
-        </div>
-
-        <div class="info-item">
-          <i class="fas fa-notes-medical"></i>
-          ${(a.condicao && a.condicao.doenca) || a.doencas || a.doenca || 'Não informada'}
-        </div>
-
-        <div class="info-item">
-          <i class="fas fa-calendar-alt"></i>
-          ${new Date(a.criado_em).toLocaleDateString()}
-        </div>
-
-      </div><div class="form-group">
-
-        <label>
-          <i class="fas fa-notes-medical"></i>
-          Doença/Queixa
-        </label>
-
-        <textarea disabled>
-          ${(a.condicao && a.condicao.doenca) || a.doencas || a.doenca || 'Não informado'}
-        </textarea>
-
-      </div><div class="form-group">
-
-        <label>
-          <i class="fas fa-capsules"></i>
-          Medicamento Recomendado
-        </label>
-
-        <input
-          type="text"
-          id="medicamento-${a.id}"
-          value="${a.medicacao_em_uso || ''}"
-          placeholder="Ex: Losartana 50mg"
-        >
-
-        </></div><div class="card-actions">
-        `
-
-        // ========================
-        // ⏳ FILA
-        // ========================
-
-        if (tipo === 'fila') {html += `
-        <button
-          class="btn-premium btn-warning btn-pegar-proximo"
-        >
-          <i class="fas fa-hand-holding-medical"></i>
-          Pegar Próximo
-        </button>
-      `}
-
-    // ========================
-        // 👨‍⚕️ EM ATENDIMENTO
-        // ========================
-
-        else if (tipo === 'atendimento') {html += `
-        <button
-          class="btn-premium btn-primary btn-abrir-prontuario"
-          data-id="${a.id}"
-        >
-          <i class="fas fa-file-alt"></i>
-          Prontuário
-        </button>
-      `}
-
-    // ========================
-        // 📝 DECISÃO
-        // ========================
-
-        else {html += `
-        <button
-          class="btn-premium btn-success btn-ver-decisao"
-          data-id="${a.id}"
-        >
-          <i class="fas fa-check"></i>
-          Aprovar
-        </button>
-
-        <button
-          class="btn-premium btn-danger btn-recusar-consulta"
-          data-id="${a.id}"
-        >
-          <i class="fas fa-times"></i>
-          Recusar
-        </button>
-      `}
-
-        html += `
-      </div></>
-      </div>
-    `
-  })
 
   container.innerHTML = html
 
@@ -2128,13 +1805,7 @@ async function verDecisao(id) {
         <textarea id="conduta" placeholder="Orientação que o paciente receberá..."></textarea>
       </div>
     \`;
-
-    modalActions.innerHTML = \`
-      <button class="btn-premium btn-success" id="confirmAprovarBtn" style="padding: 14px;">
-        <i class="fas fa-check-circle"></i> CONFIRMAR E ENVIAR RECEITA
-      </button>
-    \`;
-    
+ 
     document.getElementById('confirmAprovarBtn').addEventListener('click', () => {
       aprovarConsulta(a.id);
     });
