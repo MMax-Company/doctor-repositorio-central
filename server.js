@@ -1488,6 +1488,63 @@ app.get('/painel-medico', (req, res) => {
   </div>
 </div>
 
+<div id="dashboard" class="dashboard-container">
+
+  <div class="columns-container">
+
+    <div class="column">
+
+      <div class="column-header">
+        <h3>Fila</h3>
+        <span
+          class="badge-count"
+          id="countFila"
+        >
+          0
+        </span>
+      </div>
+
+      <div id="filaColuna"></div>
+
+    </div>
+
+    <div class="column">
+
+      <div class="column-header">
+        <h3>Em Atendimento</h3>
+
+        <span
+          class="badge-count"
+          id="countAtendimento"
+        >
+          0
+        </span>
+      </div>
+
+      <div id="atendimentoColuna"></div>
+
+    </div>
+
+    <div class="column">
+
+      <div class="column-header">
+        <h3>Decisão</h3>
+
+        <span
+          class="badge-count"
+          id="countDecisao"
+        >
+          0
+        </span>
+      </div>
+
+      <div id="decisaoColuna"></div>
+
+    </div>
+
+  </div>
+
+</div>
 
   <div class="suporte-section">
     <h3><i class="fas fa-headset" style="color: #f59e0b;"></i> CHAMADOS DE SUPORTE</h3>
@@ -1741,11 +1798,11 @@ function renderizarColunas() {
     else {
 
       html +=
-        '<button class="btn-success" onclick="aprovarAtendimento(\'' + a.id + '\')">' +
+        '<button class="btn-success" onclick="aprovarConsulta(\'' + a.id + '\')">' +
         '✅ Aprovar' +
         '</button>' +
 
-        '<button class="btn-danger" onclick="recusarAtendimento(\'' + a.id + '\')">' +
+        '<button class="btn-danger" onclick="recusarConsulta(\'' + a.id + '\')">' +
         '❌ Recusar' +
         '</button>'
     }
