@@ -658,6 +658,43 @@ app.get('/api/payment/:id', async (req, res) => {
 })
 
 // ========================
+// 🔄 MOVER PARA PRONTO_PARA_DECISAO
+// ========================
+app.post('/api/atendimento/:id/pronto-decisao', auth, async (req, res) => {
+  try {
+    const at = await db.buscarAtendimentoPorId(req.params.id)
+
+    if (!at) {
+      return res.status(404).json({
+        error: 'Atendimento não encontrado'
+      })
+    }
+
+    if (at.status !== ESTADOS_FLUXO.EM_ATENDIMENTO) {
+      return res.status(400).json({
+        error: `Status inválido. Esperado: EM_ATENDIMENTO, atual: ${at.status}`
+      })
+    }
+
+    await db.atualizarStatus(
+      req.params.id,
+      ESTADOS_FLUXO.PRONTO_PARA_DECISAO
+    )
+
+    res.json({
+      success: true,
+      message: 'Paciente movido para PRONTO_PARA_DECISAO'
+    })
+
+  } catch (e) {
+    console.error('❌ Erro ao mover para pronto decisão:', e.message)
+    res.status(500).json({
+      error: e.message
+    })
+  }
+})
+
+// ========================
 // ✅ VERIFICAR STATUS DO PAGAMENTO
 // ========================
 app.get('/api/payment/status/:id', async (req, res) => {
@@ -1807,7 +1844,7 @@ app.get('/painel-medico', (req, res) => {
 function renderizarColunas() {
   const fila = atendimentosData.filter(a => a.status === 'FILA' && a.pagamento);
   const emAtendimento = atendimentosData.filter(a => a.status === 'EM_ATENDIMENTO');
-  const prontoDecisao = atendimentosData.filter(a => a.status === 'APROVADO');
+  const prontoDecisao = atendimentosData.filter(a => a.status === 'PRONTO_PARA_DECISAO');
 
     document.getElementById('countFila').innerText = fila.length;
     document.getElementById('countAtendimento').innerText = emAtendimento.length;
@@ -1929,72 +1966,77 @@ function renderizarColunas() {
     window.location.href = '/prontuario/' + id;
   }
 
-  async function verDecisao(id) {
-    try {
-      const res = await fetch(window.location.origin + '/api/atendimento/' + id, {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      
-      if (!res.ok) {
-        if (res.status === 401) {
-          logout();
-          alert('Sessão expirada. Faça login novamente.');
-          return;
-        }
-        throw new Error('Erro ao carregar atendimento');
+async function verDecisao(id) {
+  try {
+    // 🔧 PRIMEIRO: mover para PRONTO_PARA_DECISAO
+    const updateRes = await fetch(window.location.origin + '/api/atendimento/' + id + '/pronto-decisao', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token 
       }
-      
-      const a = await res.json();
-
-      const modal = document.getElementById('modal');
-      const modalContent = document.getElementById('modalContent');
-      const modalActions = document.getElementById('modalActions');
-      
-      modalContent.innerHTML = \`
-        <div class="form-grid">
-          <div class="form-group">
-            <label><i class="fas fa-user"></i> Paciente</label>
-            <input type="text" value="\${a.paciente_nome || ''}" disabled>
-          </div>
-          <div class="form-group">
-            <label><i class="fas fa-phone"></i> Telefone</label>
-            <input type="text" value="\${a.paciente_telefone || ''}" disabled>
-          </div>
-        </div>
-        <div class="form-group">
-          <label><i class="fas fa-notes-medical"></i> Doença/Queixa</label>
-          <textarea disabled>\${a.doencas || a.doenca || 'Não informado'}</textarea>
-        </div>
-        <div class="form-group">
-          <label><i class="fas fa-capsules"></i> Medicamento Recomendado</label>
-          <input type="text" id="medicamento" value="\${a.medicacao_em_uso || ''}" placeholder="Ex: Losartana 50mg">
-        </div>
-        <div class="form-group">
-          <label><i class="fas fa-prescription-bottle"></i> Posologia</label>
-          <textarea id="posologia" placeholder="Ex: 1 comprimido ao dia, pela manhã"></textarea>
-        </div>
-        <div class="form-group">
-          <label><i class="fas fa-stethoscope"></i> Conduta Médica (Orientação)</label>
-          <textarea id="conduta" placeholder="Orientação que o paciente receberá..."></textarea>
-        </div>
-      \`;
-
-      modalActions.innerHTML = \`
-        <button class="btn-premium btn-success" id="confirmAprovarBtn" style="padding: 14px;">
-          <i class="fas fa-check-circle"></i> CONFIRMAR E ENVIAR RECEITA
-        </button>
-      \`;
-      
-      document.getElementById('confirmAprovarBtn').addEventListener('click', () => {
-        aprovarConsulta(a.id);
-      });
-      
-      modal.style.display = 'flex';
-    } catch(e) { 
-      console.error('Erro ver decisão:', e);
-      alert('Erro ao carregar prontuário: ' + e.message); 
+    });
+    
+    if (!updateRes.ok) {
+      const err = await updateRes.json();
+      console.warn('Erro ao atualizar status:', err);
+      // Continua mesmo assim, apenas avisa
     }
+    
+    const res = await fetch(window.location.origin + '/api/atendimento/' + id, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const a = await res.json();
+
+    const modal = document.getElementById('modal');
+    const modalContent = document.getElementById('modalContent');
+    const modalActions = document.getElementById('modalActions');
+    
+    modalContent.innerHTML = \`
+      <div class="form-grid">
+        <div class="form-group">
+          <label><i class="fas fa-user"></i> Paciente</label>
+          <input type="text" value="\${a.paciente_nome || ''}" disabled>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-phone"></i> Telefone</label>
+          <input type="text" value="\${a.paciente_telefone || ''}" disabled>
+        </div>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-notes-medical"></i> Doença/Queixa</label>
+        <textarea disabled>\${a.doencas || a.doenca || 'Não informado'}</textarea>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-capsules"></i> Medicamento Recomendado</label>
+        <input type="text" id="medicamento" value="\${a.medicacao_em_uso || ''}" placeholder="Ex: Losartana 50mg">
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-prescription-bottle"></i> Posologia</label>
+        <textarea id="posologia" placeholder="Ex: 1 comprimido ao dia, pela manhã"></textarea>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-stethoscope"></i> Conduta Médica (Orientação)</label>
+        <textarea id="conduta" placeholder="Orientação que o paciente receberá..."></textarea>
+      </div>
+    \`;
+
+    modalActions.innerHTML = \`
+      <button class="btn-premium btn-success" id="confirmAprovarBtn" style="padding: 14px;">
+        <i class="fas fa-check-circle"></i> CONFIRMAR E ENVIAR RECEITA
+      </button>
+    \`;
+    
+    document.getElementById('confirmAprovarBtn').addEventListener('click', () => {
+      aprovarConsulta(a.id);
+    });
+    
+    modal.style.display = 'flex';
+  } catch(e) { 
+    console.error('Erro ver decisão:', e);
+    alert('Erro ao carregar prontuário: ' + e.message); 
   }
+}
 
   async function abrirMemedPrescricao(atendimentoId) {
     try {
@@ -2238,7 +2280,8 @@ app.put('/api/decisao/:id/revisar', auth, async (req, res) => {
         posologia: posologiaFinal
       }
 
-      await db.atualizarStatus(id, 'APROVAR', decisaoData)
+      // ✅ CORRIGIDO: usa ESTADOS_FLUXO.APROVADO
+      await db.atualizarStatus(id, ESTADOS_FLUXO.APROVADO, decisaoData)
 
       // Log de revisão (Ponto 7)
       await db.salvarDecisaoLog({
@@ -2258,7 +2301,8 @@ app.put('/api/decisao/:id/revisar', auth, async (req, res) => {
         observacao: observacao || `Revisão: ${motivoRevisao || 'Reanálise do caso'}`
       }
 
-      await db.atualizarStatus(id, 'RECUSAR', decisaoData)
+      // ✅ CORRIGIDO: usa ESTADOS_FLUXO.RECUSADO
+      await db.atualizarStatus(id, ESTADOS_FLUXO.RECUSADO, decisaoData)
 
       // Log de revisão (Ponto 7)
       await db.salvarDecisaoLog({
@@ -2306,8 +2350,9 @@ app.put('/api/decisao/:id/revisar', auth, async (req, res) => {
 app.get('/api/estatisticas/decisoes', auth, async (req, res) => {
   try {
     const logs = await db.getDecisoesLog()
-    const aprovados = logs.filter(l => l.decisao === 'APROVAR')
-    const recusados = logs.filter(l => l.decisao === 'RECUSAR')
+    // ✅ CORRIGIDO: aceita ambos os formatos (backward compatibility)
+    const aprovados = logs.filter(l => l.decisao === 'APROVADO' || l.decisao === 'APROVAR')
+    const recusados = logs.filter(l => l.decisao === 'RECUSADO' || l.decisao === 'RECUSAR')
 
     res.json({
       total_decisoes: logs.length,
@@ -2955,7 +3000,9 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
 
     // Ponto 6: Validar transição
     const at = await db.buscarAtendimentoPorId(atendimentoId)
-    if (!at) return res.status(404).json({ error: 'Atendimento não encontrado' })
+    if (!at) {
+      return res.status(404).json({ error: 'Atendimento não encontrado' })
+    }
 
     if (!transicaoValida(at.status, status)) {
       return res.status(400).json({
@@ -2967,6 +3014,7 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
     await db.atualizarStatus(atendimentoId, status)
     res.json({ success: true, message: 'Status atualizado' })
   } catch (e) {
+    console.error('❌ Erro ao atualizar status:', e.message)
     res.status(500).json({ error: e.message })
   }
 })
