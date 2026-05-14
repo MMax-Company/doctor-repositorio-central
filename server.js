@@ -3053,7 +3053,7 @@ async function startServer() {
       console.log(`🌐 BASE_URL: ${BASE_URL}`)
       console.log(`📦 Ambiente: ${process.env.NODE_ENV || 'development'}`)
       console.log(`📱 WhatsApp: modo ${WHATSAPP_MODE}`)
-      console.log(`🔒 Fluxo de estados: TRIAGEM → AGUARDANDO_PAGAMENTO → FILA → APROVADO/RECUSADO → RECEITA_EMITIDA`)
+      console.log(`🔒 Fluxo de estados: TRIAGEM → AGUARDANDO_PAGAMENTO → FILA → EM_ATENDIMENTO → PRONTO_PARA_DECISAO → APROVADO/RECUSADO → RECEITA_EMITIDA`)
     })
   } catch (e) {
     console.error('❌ Erro ao iniciar servidor:', e.message)
