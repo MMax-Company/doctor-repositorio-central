@@ -1677,26 +1677,90 @@ function renderizarColunas() {
           ? '👨‍⚕️ Atendendo'
           : '📝 Decisão'
 
+    html +=
+      '<div class="suporte-card">' +
+
+        '<div class="card-header">' +
+
+          '<div>' +
+            '<div class="patient-name">' +
+              (a.paciente_nome || 'Paciente') +
+            '</div>' +
+
+            '<div class="patient-id">' +
+              'ID: ' + a.id.substring(0, 8) +
+            '</div>' +
+          '</div>' +
+
+          '<span class="status-badge ' + statusClass + '">' +
+            statusText +
+          '</span>' +
+
+        '</div>' +
+
+        '<div class="patient-info">' +
+
+          '<div class="info-item">' +
+            '<i class="fas fa-phone"></i> ' +
+            (a.paciente_telefone || 'Não informado') +
+          '</div>' +
+
+          '<div class="info-item">' +
+            '<i class="fas fa-notes-medical"></i> ' +
+            (a.doencas || 'Não informado') +
+          '</div>' +
+
+          '<div class="info-item">' +
+            '<i class="fas fa-pills"></i> ' +
+            (a.medicacao_em_uso || 'Não informado') +
+          '</div>' +
+
+        '</div>' +
+
+        '<div class="card-actions">'
+
+    // FILA
+    if (tipo === 'fila') {
+
+      html +=
+        '<button class="btn-warning" onclick="pegarProximo()">' +
+        '👨‍⚕️ Pegar Próximo' +
+        '</button>'
+    }
+
+    // EM ATENDIMENTO
+    else if (tipo === 'atendimento') {
+
+      html +=
+        '<button class="btn-primary" onclick="abrirProntuario(\'' + a.id + '\')">' +
+        '📋 Abrir Prontuário' +
+        '</button>'
+    }
+
+    // DECISÃO
+    else {
+
+      html +=
+        '<button class="btn-success" onclick="aprovarAtendimento(\'' + a.id + '\')">' +
+        '✅ Aprovar' +
+        '</button>' +
+
+        '<button class="btn-danger" onclick="recusarAtendimento(\'' + a.id + '\')">' +
+        '❌ Recusar' +
+        '</button>'
+    }
+
+    html +=
+        '</div>' +
+      '</div>'
+  })
+
   container.innerHTML = html
+}
 
-  // ========================
-  // 🎯 EVENTOS DINÂMICOS
-  // ========================
-
-  container
-    .querySelectorAll('.btn-pegar-proximo')
-    .forEach(btn =>
-      btn.addEventListener('click', pegarProximo)
-    )
-
-  container
-    .querySelectorAll('.btn-abrir-prontuario')
-    .forEach(btn =>
-      btn.addEventListener('click', function () {
-        abrirProntuario(this.dataset.id)
-      })
-    )
-
+//// ========================
+// 🎯 FUNÇÕES DO PAINEL
+// ========================
 async function pegarProximo() {
 
   try {
@@ -1719,7 +1783,6 @@ async function pegarProximo() {
 
     const data = await res.json()
 
-    // ✅ CORREÇÃO
     if (data.success) {
 
       window.location.href =
@@ -1747,195 +1810,331 @@ async function pegarProximo() {
   }
 }
 
-  function abrirProntuario(id) {
-    window.location.href = '/prontuario/' + id;
-  }
+function abrirProntuario(id) {
+
+  window.location.href =
+    '/prontuario/' + id
+}
 
 async function verDecisao(id) {
-  try {
-    // 🔧 PRIMEIRO: mover para PRONTO_PARA_DECISAO
-    const updateRes = await fetch(window.location.origin + '/api/atendimento/' + id + '/pronto-decisao', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token 
-      }
-    });
-    
-    if (!updateRes.ok) {
-      const err = await updateRes.json();
-      console.warn('Erro ao atualizar status:', err);
-      // Continua mesmo assim, apenas avisa
-    }
-    
-    const res = await fetch(window.location.origin + '/api/atendimento/' + id, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    const a = await res.json();
 
-    const modal = document.getElementById('modal');
-    const modalContent = document.getElementById('modalContent');
-    const modalActions = document.getElementById('modalActions');
-    
-    modalContent.innerHTML = \`
-      <div class="form-grid">
-        <div class="form-group">
-          <label><i class="fas fa-user"></i> Paciente</label>
-          <input type="text" value="\${a.paciente_nome || ''}" disabled>
-        </div>
-        <div class="form-group">
-          <label><i class="fas fa-phone"></i> Telefone</label>
-          <input type="text" value="\${a.paciente_telefone || ''}" disabled>
-        </div>
-      </div>
-      <div class="form-group">
-        <label><i class="fas fa-notes-medical"></i> Doença/Queixa</label>
-        <textarea disabled>\${a.doencas || a.doenca || 'Não informado'}</textarea>
-      </div>
-      <div class="form-group">
-        <label><i class="fas fa-capsules"></i> Medicamento Recomendado</label>
-        <input type="text" id="medicamento" value="\${a.medicacao_em_uso || ''}" placeholder="Ex: Losartana 50mg">
-      </div>
-      <div class="form-group">
-        <label><i class="fas fa-prescription-bottle"></i> Posologia</label>
-        <textarea id="posologia" placeholder="Ex: 1 comprimido ao dia, pela manhã"></textarea>
-      </div>
-      <div class="form-group">
-        <label><i class="fas fa-stethoscope"></i> Conduta Médica (Orientação)</label>
-        <textarea id="conduta" placeholder="Orientação que o paciente receberá..."></textarea>
-      </div>
-    \`;
- 
-    document.getElementById('confirmAprovarBtn').addEventListener('click', () => {
-      aprovarConsulta(a.id);
-    });
-    
-    modal.style.display = 'flex';
-  } catch(e) { 
-    console.error('Erro ver decisão:', e);
-    alert('Erro ao carregar prontuário: ' + e.message); 
+  try {
+
+    await fetch(
+      window.location.origin +
+      '/api/atendimento/' +
+      id +
+      '/pronto-decisao',
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        }
+      }
+    )
+
+    const res = await fetch(
+      window.location.origin +
+      '/api/atendimento/' +
+      id,
+      {
+        headers: {
+          'Authorization': 'Bearer ' + token
+        }
+      }
+    )
+
+    const a = await res.json()
+
+    const modal =
+      document.getElementById('modal')
+
+    const modalContent =
+      document.getElementById('modalContent')
+
+    modalContent.innerHTML =
+
+      '<div class="form-group">' +
+        '<label>Paciente</label>' +
+        '<input type="text" value="' +
+        (a.paciente_nome || '') +
+        '" disabled>' +
+      '</div>' +
+
+      '<div class="form-group">' +
+        '<label>Telefone</label>' +
+        '<input type="text" value="' +
+        (a.paciente_telefone || '') +
+        '" disabled>' +
+      '</div>' +
+
+      '<div class="form-group">' +
+        '<label>Doença/Queixa</label>' +
+        '<textarea disabled>' +
+        (a.doencas || 'Não informado') +
+        '</textarea>' +
+      '</div>' +
+
+      '<div class="form-group">' +
+        '<label>Medicamento</label>' +
+        '<input type="text" id="medicamento" value="' +
+        (a.medicacao_em_uso || '') +
+        '">' +
+      '</div>' +
+
+      '<div class="form-group">' +
+        '<label>Posologia</label>' +
+        '<textarea id="posologia"></textarea>' +
+      '</div>' +
+
+      '<div class="form-group">' +
+        '<label>Conduta</label>' +
+        '<textarea id="conduta"></textarea>' +
+      '</div>'
+
+    document
+      .getElementById('confirmAprovarBtn')
+      .onclick = function () {
+        aprovarConsulta(a.id)
+      }
+
+    modal.style.display = 'flex'
+
+  } catch (e) {
+
+    console.error(
+      'Erro ver decisão:',
+      e
+    )
+
+    alert(
+      'Erro ao carregar prontuário'
+    )
   }
 }
 
-  async function abrirMemedPrescricao(atendimentoId) {
-    try {
-      console.log('🚀 Inicializando Memed')
+async function abrirMemedPrescricao(atendimentoId) {
 
-      const atendimento = atendimentosData.find(a => a.id === atendimentoId)
+  try {
 
-      if (!atendimento) {
-        alert('Atendimento não encontrado')
-        return
-      }
+    const atendimento =
+      atendimentosData.find(
+        a => a.id === atendimentoId
+      )
 
-      if (typeof MdHub === 'undefined') {
-        alert('Memed não carregada. Aguarde o carregamento completo da página.')
-        return
-      }
+    if (!atendimento) {
 
-      MdHub.command.send(
-        'plataforma.prescricao',
-        {
-          integration: 'DoctorPrescreve',
-          paciente: {
-            nome: atendimento.paciente_nome || 'Paciente',
-            telefone: atendimento.paciente_telefone || '',
-            sexo: 'NI'
-          },
-          prescricao: {
-            medicamento: document.getElementById('medicamento')?.value || '',
-            posologia: document.getElementById('posologia')?.value || ''
-          },
-          callback: async function(data) {
-            console.log('✅ Receita Memed finalizada', data)
+      alert('Atendimento não encontrado')
+      return
+    }
 
-            try {
-              const medicamento = document.getElementById('medicamento')?.value || ''
-              const posologia = document.getElementById('posologia')?.value || ''
-              const conduta = document.getElementById('conduta')?.value || ''
-              const receitaId = data?.id || data?.prescricao_id || null
+    if (typeof MdHub === 'undefined') {
 
-              const response = await fetch(
-                window.location.origin + '/api/decisao/' + atendimentoId,
+      alert(
+        'Memed não carregada'
+      )
+
+      return
+    }
+
+    MdHub.command.send(
+      'plataforma.prescricao',
+      {
+        integration: 'DoctorPrescreve',
+
+        paciente: {
+          nome:
+            atendimento.paciente_nome ||
+            'Paciente',
+
+          telefone:
+            atendimento.paciente_telefone ||
+            '',
+
+          sexo: 'NI'
+        },
+
+        prescricao: {
+
+          medicamento:
+            document.getElementById(
+              'medicamento'
+            )?.value || '',
+
+          posologia:
+            document.getElementById(
+              'posologia'
+            )?.value || ''
+        },
+
+        callback: async function(data) {
+
+          try {
+
+            const response =
+              await fetch(
+                window.location.origin +
+                '/api/decisao/' +
+                atendimentoId,
                 {
                   method: 'POST',
+
                   headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
+                    'Content-Type':
+                      'application/json',
+
+                    'Authorization':
+                      'Bearer ' + token
                   },
+
                   body: JSON.stringify({
                     decisao: 'APROVAR',
-                    orientacoes: conduta,
-                    medicamento: medicamento,
-                    posologia: posologia,
-                    receita_memed_id: receitaId,
+
+                    orientacoes:
+                      document.getElementById(
+                        'conduta'
+                      )?.value || '',
+
+                    medicamento:
+                      document.getElementById(
+                        'medicamento'
+                      )?.value || '',
+
+                    posologia:
+                      document.getElementById(
+                        'posologia'
+                      )?.value || '',
+
+                    receita_memed_id:
+                      data?.id || null,
+
                     memed_payload: data
                   })
                 }
               )
 
-              if (response.ok) {
-                alert('✅ Receita emitida com sucesso!')
-                fecharModal()
-                carregarDados()
-              } else {
-                const errData = await response.json()
-                alert('Erro ao salvar decisão: ' + (errData.error || 'Erro desconhecido'))
-              }
-            } catch (e) {
-              console.error('Erro ao finalizar receita:', e)
-              alert('Erro ao finalizar receita: ' + e.message)
+            if (response.ok) {
+
+              alert(
+                '✅ Receita emitida'
+              )
+
+              fecharModal()
+              carregarDados()
+
+            } else {
+
+              alert(
+                'Erro ao salvar decisão'
+              )
             }
+
+          } catch (e) {
+
+            console.error(e)
+
+            alert(
+              'Erro ao finalizar receita'
+            )
           }
         }
-      )
-    } catch (e) {
-      console.error('Erro ao abrir Memed:', e)
-      alert('Erro ao abrir Memed: ' + e.message)
-    }
-  }
-
-  async function aprovarConsulta(id) {
-    if (!confirm('Abrir prescrição digital Memed?')) return
-    abrirMemedPrescricao(id)
-  }
-
-  async function recusarConsulta(id) {
-    const motivo = prompt('Motivo da recusa (opcional):')
-    if (!confirm('❌ Tem certeza que deseja recusar este atendimento?')) return
-
-    try {
-      const res = await fetch(
-        window.location.origin + '/api/decisao/' + id,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-          },
-          body: JSON.stringify({
-            decisao: 'RECUSAR',
-            orientacoes: motivo || 'Recusado pelo médico'
-          })
-        }
-      )
-
-      if (res.ok) {
-        alert('❌ Consulta recusada')
-        carregarDados()
-      } else {
-        const errData = await res.json()
-        alert('Erro ao recusar consulta: ' + (errData.error || 'Erro desconhecido'))
       }
-    } catch(e) {
-      console.error('Erro recusar consulta:', e)
-      alert('Erro ao recusar consulta: ' + e.message)
-    }
-  }
+    )
 
-  function fecharModal() {
-    document.getElementById('modal').style.display = 'none'
+  } catch (e) {
+
+    console.error(e)
+
+    alert(
+      'Erro ao abrir Memed'
+    )
   }
+}
+
+async function aprovarConsulta(id) {
+
+  if (
+    !confirm(
+      'Abrir prescrição digital Memed?'
+    )
+  ) return
+
+  abrirMemedPrescricao(id)
+}
+
+async function recusarConsulta(id) {
+
+  const motivo =
+    prompt(
+      'Motivo da recusa (opcional):'
+    )
+
+  if (
+    !confirm(
+      '❌ Tem certeza que deseja recusar?'
+    )
+  ) return
+
+  try {
+
+    const res = await fetch(
+      window.location.origin +
+      '/api/decisao/' +
+      id,
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type':
+            'application/json',
+
+          'Authorization':
+            'Bearer ' + token
+        },
+
+        body: JSON.stringify({
+          decisao: 'RECUSAR',
+
+          orientacoes:
+            motivo ||
+            'Recusado pelo médico'
+        })
+      }
+    )
+
+    if (res.ok) {
+
+      alert(
+        '❌ Consulta recusada'
+      )
+
+      carregarDados()
+
+    } else {
+
+      alert(
+        'Erro ao recusar consulta'
+      )
+    }
+
+  } catch (e) {
+
+    console.error(e)
+
+    alert(
+      'Erro ao recusar consulta'
+    )
+  }
+}
+
+function fecharModal() {
+
+  document.getElementById(
+    'modal'
+  ).style.display = 'none'
+}
 
   // ========================
   // 🚀 INIT MEMED
@@ -1951,7 +2150,7 @@ window.addEventListener('load', () => {
       .then(data => {
         if (data.token) {
           MdHub.init({
-            apiKey: '${process.env.MEMED_API_KEY}',
+            apiKey: '${MEMED_API_KEY}',
             token: data.token  // ← token temporário, não a secret key!
           })
           console.log('✅ Memed inicializada com token seguro')
@@ -2155,7 +2354,7 @@ app.put('/api/decisao/:id/revisar', auth, async (req, res) => {
     // Só pode revisar decisões já tomadas (APROVADO ou RECUSADO)
     if (at.status !== ESTADOS_FLUXO.APROVADO && at.status !== ESTADOS_FLUXO.RECUSADO) {
       return res.status(400).json({
-        error: `Só é possível revisar atendimentos com status APROVADO ou RECUSADO. Status atual: \${at.status}`
+        error: `Só é possível revisar atendimentos com status APROVADO ou RECUSADO. Status atual: ${at.status}`
       })
     }
 
@@ -2582,7 +2781,6 @@ app.post('/api/receita', auth, async (req, res) => {
       created_at: new Date().toISOString()
     }
 
-    const filePath = path.join(DB_DIR, `receita_${id}.json`)
     await db.salvarReceita(receitaCompleta)
 
     // Atualizar status para RECEITA_EMITIDA (Ponto 6)
@@ -2614,6 +2812,7 @@ app.get('/api/receita/:id', auth, async (req, res) => {
     const filePath = path.join(DB_DIR, `receita_${req.params.id}.json`)
     const receita = await db.buscarReceitaPorId(req.params.id)
     if (!receita) {
+      fs.unlinkSync(filePath)
       return res.status(404).json({ valido: false, mensagem: 'Receita não encontrada' })
     }
     res.json(receita)
@@ -2775,7 +2974,7 @@ app.post('/api/receita/:id/cancelar', auth, async (req, res) => {
     const receita = await db.buscarReceitaPorId(req.params.id)
     if (!receita) return res.status(404).json({ error: 'Receita não encontrada' })
     
-     const motivo = req.body.motivo || 'Cancelada pelo médico'
+     const motivo = req.body.motivo ||'Cancelada pelo médico'
     await db.atualizarStatusReceita(req.params.id, 'CANCELADA', motivo)
 
     // Sincronizar exclusão com a Memed (Requisito Tasy/MV)
@@ -2972,7 +3171,7 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
 
     if (!transicaoValida(at.status, status)) {
       return res.status(400).json({
-        error: `Transição inválida:\${at.status} → ${status}`,
+        error: `Transição inválida: ${at.status} → ${status}`,
         transicoes_permitidas: TRANSICOES_VALIDAS[at.status] || []
       })
     }
