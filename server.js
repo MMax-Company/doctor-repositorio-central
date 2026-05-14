@@ -1791,10 +1791,44 @@ app.get('/painel-medico', (req, res) => {
             <span class="status-badge \${statusClass}">\${statusText}</span>
           </div>
           <div class="patient-info">
-            <div class="info-item"><i class="fas fa-phone"></i> \${a.paciente_telefone || 'Não informado'}</div>
-             <div class="info-item"><i class="fas fa-notes-medical"></i> \${a.doencas || a.doenca || 'Não informada'}</div>
-            <div class="info-item"><i class="fas fa-calendar-alt"></i> \${new Date(a.criado_em).toLocaleDateString()}</div>
-          </div>
+  <div class="info-item">
+    <i class="fas fa-phone"></i>
+    \${a.paciente_telefone || 'Não informado'}
+  </div>
+
+  <div class="info-item">
+    <i class="fas fa-notes-medical"></i>
+    \${a.doencas || a.doenca || 'Não informada'}
+  </div>
+
+  <div class="info-item">
+    <i class="fas fa-calendar-alt"></i>
+    \${new Date(a.criado_em).toLocaleDateString()}
+  </div>
+</div>
+
+<div class="form-group">
+  <label>
+    <i class="fas fa-notes-medical"></i>
+    Doença/Queixa
+  </label>
+
+  <textarea disabled>\${a.doencas || a.doenca || 'Não informado'}</textarea>
+</div>
+
+<div class="form-group">
+  <label>
+    <i class="fas fa-capsules"></i>
+    Medicamento Recomendado
+  </label>
+
+  <input
+    type="text"
+    id="medicamento"
+    value="\${a.medicacao_em_uso || ''}"
+    placeholder="Ex: Losartana 50mg"
+  >
+</div>
           <div class="card-actions">
       \`;
 
