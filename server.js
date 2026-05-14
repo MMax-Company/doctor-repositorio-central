@@ -34,6 +34,8 @@ const ESTADOS_FLUXO = {
   INELEGIVEL: 'INELEGIVEL',
   AGUARDANDO_PAGAMENTO: 'AGUARDANDO_PAGAMENTO',
   FILA: 'FILA',
+  EM_ATENDIMENTO: 'EM_ATENDIMENTO',
+  PRONTO_PARA_DECISAO: 'PRONTO_PARA_DECISAO',
   APROVADO: 'APROVADO',
   RECUSADO: 'RECUSADO',
   RECEITA_EMITIDA: 'RECEITA_EMITIDA'
@@ -41,11 +43,36 @@ const ESTADOS_FLUXO = {
 
 // Transições permitidas (de → para[])
 const TRANSICOES_VALIDAS = {
-  [ESTADOS_FLUXO.TRIAGEM]: [ESTADOS_FLUXO.AGUARDANDO_PAGAMENTO, ESTADOS_FLUXO.INELEGIVEL],
-  [ESTADOS_FLUXO.AGUARDANDO_PAGAMENTO]: [ESTADOS_FLUXO.FILA],
-  [ESTADOS_FLUXO.FILA]: [ESTADOS_FLUXO.APROVADO, ESTADOS_FLUXO.RECUSADO],
-  [ESTADOS_FLUXO.APROVADO]: [ESTADOS_FLUXO.RECEITA_EMITIDA, ESTADOS_FLUXO.RECUSADO],
-  [ESTADOS_FLUXO.RECUSADO]: [ESTADOS_FLUXO.APROVADO]
+  [ESTADOS_FLUXO.TRIAGEM]: [
+    ESTADOS_FLUXO.AGUARDANDO_PAGAMENTO,
+    ESTADOS_FLUXO.INELEGIVEL
+  ],
+
+  [ESTADOS_FLUXO.AGUARDANDO_PAGAMENTO]: [
+    ESTADOS_FLUXO.FILA
+  ],
+
+  [ESTADOS_FLUXO.FILA]: [
+    ESTADOS_FLUXO.EM_ATENDIMENTO
+  ],
+
+  [ESTADOS_FLUXO.EM_ATENDIMENTO]: [
+    ESTADOS_FLUXO.PRONTO_PARA_DECISAO
+  ],
+
+  [ESTADOS_FLUXO.PRONTO_PARA_DECISAO]: [
+    ESTADOS_FLUXO.APROVADO,
+    ESTADOS_FLUXO.RECUSADO
+  ],
+
+  [ESTADOS_FLUXO.APROVADO]: [
+    ESTADOS_FLUXO.RECEITA_EMITIDA,
+    ESTADOS_FLUXO.RECUSADO
+  ],
+
+  [ESTADOS_FLUXO.RECUSADO]: [
+    ESTADOS_FLUXO.APROVADO
+  ]
 }
 
 function transicaoValida(statusAtual, novoStatus) {
@@ -160,16 +187,26 @@ if (fs.existsSync(dashboardDistPath)) {
 
 app.use(express.json())
 
+// 🔧 CORREÇÃO 1: CSP ATUALIZADO PARA PERMITIR MEMED
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+      scriptSrc: [
+        "'self'", 
+        "'unsafe-inline'", 
+        "https://cdnjs.cloudflare.com",
+        "https://integrations.memed.com.br"
+      ],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       imgSrc: ["'self'", "data:", "https://*"],
-      connectSrc: ["'self'", "https://*"],
+      connectSrc: [
+        "'self'", 
+        "https://*",
+        "https://integrations.memed.com.br"
+      ],
       workerSrc: ["'self'", "blob:"],
     },
   },
@@ -812,24 +849,6 @@ app.get('/api/atendimento/:id', auth, async (req, res) => {
   }
 })
 
-app.get('/api/suporte/pendentes', async (req, res) => {
-
-  try {
-
-    res.json([])
-
-  } catch (e) {
-
-    console.error(e)
-
-    res.status(500).json({
-      erro: 'Erro ao carregar suportes'
-    })
-
-  }
-
-})
-
 // ========================
 // 📊 ESTATÍSTICAS
 // ========================
@@ -934,7 +953,7 @@ app.post('/api/fila/pegar-proximo', auth, async (req, res) => {
 })
 
 // ========================
-//  PAINEL MEDICO
+//  PAINEL MEDICO (COM CORREÇÕES)
 // ========================
 app.get('/painel-medico', (req, res) => {
   res.send(`<!DOCTYPE html>
@@ -1643,24 +1662,50 @@ app.get('/painel-medico', (req, res) => {
     document.getElementById('senha').value = '';
   }
 
+  // 🔧 CORREÇÃO 2: carregarDados() com tratamento de erro 401
   async function carregarDados() {
     if (!token) return;
     try {
       const res = await fetch(window.location.origin + '/api/atendimentos', {
         headers: { 'Authorization': 'Bearer ' + token }
       });
-      atendimentosData = await res.json();
       
-      const statsRes = await fetch(window.location.origin + '/api/estatisticas', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      const stats = await statsRes.json();
+      const data = await res.json();
       
-      atualizarEstatisticas(stats);
+      if (!res.ok) {
+        console.error('Erro na API:', data);
+        if (res.status === 401) {
+          console.log('Token expirado, redirecionando para login...');
+          logout();
+          alert('Sessão expirada. Faça login novamente.');
+          return;
+        }
+        atendimentosData = [];
+      } else {
+        atendimentosData = Array.isArray(data) ? data : [];
+      }
+      
+      // Só carrega estatísticas se tiver dados válidos
+      if (res.ok) {
+        try {
+          const statsRes = await fetch(window.location.origin + '/api/estatisticas', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          if (statsRes.ok) {
+            const stats = await statsRes.json();
+            atualizarEstatisticas(stats);
+          }
+        } catch(statsErr) {
+          console.warn('Erro ao carregar estatísticas:', statsErr);
+        }
+      }
+      
       renderizarColunas();
       carregarSuportes();
     } catch(e) {
       console.error('Erro ao carregar:', e);
+      atendimentosData = [];
+      renderizarColunas();
     }
   }
 
@@ -1688,11 +1733,13 @@ app.get('/painel-medico', (req, res) => {
 
   async function carregarSuportes() {
     try {
-      const res = await fetch('/api/suporte/pendentes');
+      const res = await fetch('/api/suporte/pendentes', {
+        headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+      });
       const suportes = await res.json();
       let html = '';
       
-      if (suportes.length === 0) {
+      if (!suportes || suportes.length === 0) {
         html = '<div class="empty-state" style="grid-column: 1/-1;"><i class="fas fa-check-circle"></i><p>Nenhum chamado pendente</p></div>';
       } else {
         suportes.forEach(s => {
@@ -1722,7 +1769,8 @@ app.get('/painel-medico', (req, res) => {
         });
       });
     } catch(e) {
-      console.error(e);
+      console.error('Erro ao carregar suportes:', e);
+      document.getElementById('suportesPendentes').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Erro ao carregar chamados</p></div>';
     }
   }
 
@@ -1739,13 +1787,13 @@ app.get('/painel-medico', (req, res) => {
   async function atenderSuporte(id, telefone, nome) {
     if (!confirm('Atender ' + nome + '? O paciente será notificado.')) return;
     try {
-      await fetch('/api/suporte/atender/' + id, { method: 'POST' });
+      await fetch('/api/suporte/atender/' + id, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
       await fetch('/api/enviar-whatsapp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({
           telefone: telefone,
-          mensagem: '👨‍⚕️ *Doctor Prescreve*\\\\n\\\\nOlá! Um atendente já está analisando seu caso e falará com você em breve.'
+          mensagem: '👨‍⚕️ *Doctor Prescreve*\\n\\nOlá! Um atendente já está analisando seu caso e falará com você em breve.'
         })
       });
       alert('✅ Paciente notificado!');
@@ -1755,10 +1803,11 @@ app.get('/painel-medico', (req, res) => {
     }
   }
 
-  function renderizarColunas() {
-    const fila = atendimentosData.filter(a => a.status === 'FILA' && a.pagamento);
-    const emAtendimento = atendimentosData.filter(a => a.status === 'EM_ATENDIMENTO');
-    const prontoDecisao = atendimentosData.filter(a => a.status === 'PRONTO_PARA_DECISAO');
+  // 🔧 CORREÇÃO 3: renderizarColunas() com verificação de array
+function renderizarColunas() {
+  const fila = atendimentosData.filter(a => a.status === 'FILA' && a.pagamento);
+  const emAtendimento = atendimentosData.filter(a => a.status === 'EM_ATENDIMENTO');
+  const prontoDecisao = atendimentosData.filter(a => a.status === 'APROVADO');
 
     document.getElementById('countFila').innerText = fila.length;
     document.getElementById('countAtendimento').innerText = emAtendimento.length;
@@ -1771,7 +1820,7 @@ app.get('/painel-medico', (req, res) => {
 
   function renderizarColuna(elementId, lista, tipo) {
     const container = document.getElementById(elementId);
-    if (lista.length === 0) {
+    if (!lista || lista.length === 0) {
       container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Vazio</p></div>';
       return;
     }
@@ -1855,21 +1904,26 @@ app.get('/painel-medico', (req, res) => {
   }
 
   async function pegarProximo() {
-    try {
-      const res = await fetch('/api/fila/pegar-proximo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ medicoId: 'medico_' + Date.now() })
-      });
-      const data = await res.json();
-      if (data.sucesso) {
-        window.location.href = '/prontuario/' + data.atendimento.id;
-      } else {
-        alert('Fila vazia ou caso já em atendimento');
-        carregarDados();
-      }
-    } catch(e) { alert('Erro: ' + e.message); }
+  try {
+    const res = await fetch('/api/fila/pegar-proximo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ medicoId: 'medico_' + Date.now() })
+    });
+    const data = await res.json();
+    
+    // CORREÇÃO: "success" ao invés de "sucesso"
+    if (data.success) {
+      window.location.href = '/prontuario/' + data.atendimento.id;
+    } else {
+      alert('Fila vazia ou caso já em atendimento');
+      carregarDados();
+    }
+  } catch(e) { 
+    console.error('Erro pegar próximo:', e);
+    alert('Erro: ' + e.message); 
   }
+}
 
   function abrirProntuario(id) {
     window.location.href = '/prontuario/' + id;
@@ -1880,6 +1934,16 @@ app.get('/painel-medico', (req, res) => {
       const res = await fetch(window.location.origin + '/api/atendimento/' + id, {
         headers: { 'Authorization': 'Bearer ' + token }
       });
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          logout();
+          alert('Sessão expirada. Faça login novamente.');
+          return;
+        }
+        throw new Error('Erro ao carregar atendimento');
+      }
+      
       const a = await res.json();
 
       const modal = document.getElementById('modal');
@@ -1926,313 +1990,171 @@ app.get('/painel-medico', (req, res) => {
       });
       
       modal.style.display = 'flex';
-    } catch(e) { alert('Erro ao carregar prontuário'); }
+    } catch(e) { 
+      console.error('Erro ver decisão:', e);
+      alert('Erro ao carregar prontuário: ' + e.message); 
+    }
   }
 
   async function abrirMemedPrescricao(atendimentoId) {
+    try {
+      console.log('🚀 Inicializando Memed')
 
-  try {
+      const atendimento = atendimentosData.find(a => a.id === atendimentoId)
 
-    console.log('🚀 Inicializando Memed')
+      if (!atendimento) {
+        alert('Atendimento não encontrado')
+        return
+      }
 
-    const atendimento =
-      atendimentosData.find(
-        a => a.id === atendimentoId
-      )
+      if (typeof MdHub === 'undefined') {
+        alert('Memed não carregada. Aguarde o carregamento completo da página.')
+        return
+      }
 
-    if (!atendimento) {
+      MdHub.command.send(
+        'plataforma.prescricao',
+        {
+          integration: 'DoctorPrescreve',
+          paciente: {
+            nome: atendimento.paciente_nome || 'Paciente',
+            telefone: atendimento.paciente_telefone || '',
+            sexo: 'NI'
+          },
+          prescricao: {
+            medicamento: document.getElementById('medicamento')?.value || '',
+            posologia: document.getElementById('posologia')?.value || ''
+          },
+          callback: async function(data) {
+            console.log('✅ Receita Memed finalizada', data)
 
-      alert('Atendimento não encontrado')
-      return
+            try {
+              const medicamento = document.getElementById('medicamento')?.value || ''
+              const posologia = document.getElementById('posologia')?.value || ''
+              const conduta = document.getElementById('conduta')?.value || ''
+              const receitaId = data?.id || data?.prescricao_id || null
 
-    }
-
-    if (typeof MdHub === 'undefined') {
-
-      alert('Memed não carregada')
-      return
-
-    }
-
-    MdHub.command.send(
-      'plataforma.prescricao',
-      {
-
-        integration: 'DoctorPrescreve',
-
-        paciente: {
-          nome:
-            atendimento.paciente_nome || 'Paciente',
-
-          telefone:
-            atendimento.paciente_telefone || '',
-
-          sexo: 'NI'
-        },
-
-        prescricao: {
-          medicamento:
-            document.getElementById('medicamento')?.value || '',
-
-          posologia:
-            document.getElementById('posologia')?.value || ''
-        },
-
-        callback: async function(data) {
-
-          console.log(
-            '✅ Receita Memed finalizada',
-            data
-          )
-
-          try {
-
-            const medicamento =
-              document.getElementById('medicamento')?.value || ''
-
-            const posologia =
-              document.getElementById('posologia')?.value || ''
-
-            const conduta =
-              document.getElementById('conduta')?.value || ''
-
-            const receitaId =
-              data?.id ||
-              data?.prescricao_id ||
-              null
-
-            const response =
-              await fetch(
-                window.location.origin +
-                '/api/decisao/' +
-                atendimentoId,
+              const response = await fetch(
+                window.location.origin + '/api/decisao/' + atendimentoId,
                 {
                   method: 'POST',
-
                   headers: {
-                    'Content-Type':
-                      'application/json',
-
-                    'Authorization':
-                      'Bearer ' + token
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
                   },
-
                   body: JSON.stringify({
-
                     decisao: 'APROVAR',
-
                     orientacoes: conduta,
-
-                    medicamento,
-
-                    posologia,
-
-                    receita_memed_id:
-                      receitaId,
-
+                    medicamento: medicamento,
+                    posologia: posologia,
+                    receita_memed_id: receitaId,
                     memed_payload: data
                   })
                 }
               )
 
-            if (response.ok) {
-
-              alert(
-                '✅ Receita emitida com sucesso!'
-              )
-
-              fecharModal()
-
-              carregarDados()
-
-            } else {
-
-              alert(
-                'Erro ao salvar decisão'
-              )
-
+              if (response.ok) {
+                alert('✅ Receita emitida com sucesso!')
+                fecharModal()
+                carregarDados()
+              } else {
+                const errData = await response.json()
+                alert('Erro ao salvar decisão: ' + (errData.error || 'Erro desconhecido'))
+              }
+            } catch (e) {
+              console.error('Erro ao finalizar receita:', e)
+              alert('Erro ao finalizar receita: ' + e.message)
             }
-
-          } catch (e) {
-
-            console.error(e)
-
-            alert(
-              'Erro ao finalizar receita'
-            )
-
           }
-
         }
-
-      }
-    )
-
-  } catch (e) {
-
-    console.error(e)
-
-    alert(
-      'Erro ao abrir Memed'
-    )
-
+      )
+    } catch (e) {
+      console.error('Erro ao abrir Memed:', e)
+      alert('Erro ao abrir Memed: ' + e.message)
+    }
   }
 
-}
+  async function aprovarConsulta(id) {
+    if (!confirm('Abrir prescrição digital Memed?')) return
+    abrirMemedPrescricao(id)
+  }
 
-async function aprovarConsulta(id) {
+  async function recusarConsulta(id) {
+    const motivo = prompt('Motivo da recusa (opcional):')
+    if (!confirm('❌ Tem certeza que deseja recusar este atendimento?')) return
 
-  if (
-    !confirm(
-      'Abrir prescrição digital Memed?'
-    )
-  ) return
-
-  abrirMemedPrescricao(id)
-
-}
-
-async function recusarConsulta(id) {
-
-  const motivo =
-    prompt(
-      'Motivo da recusa (opcional):'
-    )
-
-  if (
-    !confirm(
-      '❌ Tem certeza que deseja recusar este atendimento?'
-    )
-  ) return
-
-  try {
-
-    const res =
-      await fetch(
-        window.location.origin +
-        '/api/decisao/' +
-        id,
+    try {
+      const res = await fetch(
+        window.location.origin + '/api/decisao/' + id,
         {
           method: 'POST',
-
           headers: {
-            'Content-Type':
-              'application/json',
-
-            'Authorization':
-              'Bearer ' + token
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
           },
-
           body: JSON.stringify({
             decisao: 'RECUSAR',
-            orientacoes:
-              motivo ||
-              'Recusado pelo médico'
+            orientacoes: motivo || 'Recusado pelo médico'
           })
         }
       )
 
-    if (res.ok) {
-
-      alert('❌ Consulta recusada')
-
-      carregarDados()
-
-    } else {
-
-      alert('Erro ao recusar consulta')
-
-    }
-
-  } catch(e) {
-
-    alert(
-      'Erro ao recusar consulta'
-    )
-
-  }
-
-}
-
-function fecharModal() {
-
-  document.getElementById(
-    'modal'
-  ).style.display = 'none'
-
-}
-
-// ========================
-// 🚀 INIT MEMED
-// ========================
-
-window.addEventListener(
-  'load',
-  () => {
-
-    if (
-      typeof MdHub !== 'undefined'
-    ) {
-
-      console.log(
-        '✅ Memed carregada'
-      )
-
-      try {
-
-        MdHub.init({
-
-          apiKey:
-            '${process.env.MEMED_API_KEY}',
-
-          secretKey:
-            '${process.env.MEMED_SECRET_KEY}'
-        })
-
-        console.log(
-          '✅ Memed inicializada'
-        )
-
-      } catch(e) {
-
-        console.error(
-          'Erro init Memed',
-          e
-        )
-
+      if (res.ok) {
+        alert('❌ Consulta recusada')
+        carregarDados()
+      } else {
+        const errData = await res.json()
+        alert('Erro ao recusar consulta: ' + (errData.error || 'Erro desconhecido'))
       }
-
-    } else {
-
-      console.error(
-        '❌ MdHub não carregou'
-      )
-
+    } catch(e) {
+      console.error('Erro recusar consulta:', e)
+      alert('Erro ao recusar consulta: ' + e.message)
     }
-
-  }
-)
-
-setInterval(() => {
-
-  if (
-    document.getElementById(
-      'dashboard'
-    ).style.display === 'block'
-  ) {
-
-    carregarDados()
-
   }
 
-}, 30000)
+  function fecharModal() {
+    document.getElementById('modal').style.display = 'none'
+  }
 
+  // ========================
+  // 🚀 INIT MEMED
+  // ========================
+window.addEventListener('load', () => {
+  if (typeof MdHub !== 'undefined') {
+    try {
+      // Carrega token seguro do backend
+      fetch('/api/memed/token', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.token) {
+          MdHub.init({
+            apiKey: '${process.env.MEMED_API_KEY}',
+            token: data.token  // ← token temporário, não a secret key!
+          })
+          console.log('✅ Memed inicializada com token seguro')
+        } else {
+          console.error('❌ Falha ao obter token Memed')
+        }
+      })
+      .catch(err => {
+        console.error('❌ Erro ao buscar token Memed:', err)
+      })
+    } catch(e) {
+      console.error('Erro init Memed', e)
+    }
+  }
+})
+
+  setInterval(() => {
+    if (document.getElementById('dashboard').style.display === 'block') {
+      carregarDados()
+    }
+  }, 30000)
 </script>
 
-<script
-  type="text/javascript"
-  src="https://integrations.memed.com.br/modulos/plataforma.js">
-</script>
+<script type="text/javascript" src="https://integrations.memed.com.br/modulos/plataforma.js"></script>
 
 </body>
 </html>
@@ -3046,6 +2968,27 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
     res.json({ success: true, message: 'Status atualizado' })
   } catch (e) {
     res.status(500).json({ error: e.message })
+  }
+})
+
+// ========================
+// 🔐 MEMED: GERAR TOKEN PARA FRONTEND (SEGURO)
+// ========================
+app.get('/api/memed/token', auth, async (req, res) => {
+  try {
+    // Verifica se o módulo memed existe
+    if (!memed || typeof memed.gerarTokenFrontend !== 'function') {
+      // Fallback: implementação simples se o módulo não tiver a função
+      const crypto = require('crypto')
+      const token = crypto.randomBytes(32).toString('hex')
+      return res.json({ token })
+    }
+    
+    const token = await memed.gerarTokenFrontend()
+    res.json({ token })
+  } catch (error) {
+    console.error('❌ Erro ao gerar token Memed:', error.message)
+    res.status(500).json({ error: 'Erro ao gerar token de autenticação' })
   }
 })
 
