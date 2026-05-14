@@ -777,29 +777,60 @@ app.get('/cancel', (req, res) => {
 })
 
 // ========================
-// 📋 FILA - SÓ PACIENTES VÁLIDOS (Ponto 2)
+// 📋 FILA - SÓ PACIENTES VÁLIDOS
 // ========================
 app.get('/api/fila', auth, async (req, res) => {
+
   try {
-    // Ponto 2: Usa query que filtra pagamento=true + elegivel=true + status=FILA
+
     const fila = await db.getFilaValida()
 
-    // Ponto 3: Retorna dados clínicos visíveis no painel
     const filaFormatada = fila.map(a => {
-      const dadosClinicos = a.dados_clinicos || a.triagem || {}
+
+      const dadosClinicos =
+        a.dados_clinicos ||
+        a.triagem ||
+        {}
+
       return {
+
         id: a.id,
-        paciente_nome: safeDecrypt(a.paciente_nome),
-        paciente_telefone: safeDecrypt(a.paciente_telefone),
-        // Ponto 3: Dados clínicos visíveis para o médico decidir
-        doencas: dadosClinicos.doenca || dadosClinicos.condicao || 'N/A',
-        medicacao_em_uso: dadosClinicos.medicacao_em_uso || 'N/A',
-        tempo_doenca: dadosClinicos.tempo_doenca || 'N/A',
-        receita_vencida_dias: dadosClinicos.receita_vencida_dias || 'N/A',
-        tipo: dadosClinicos.tipo || 'OUTRO',
-        elegivel_protocolo: dadosClinicos.elegivel_protocolo || false,
+
+        paciente_nome:
+          safeDecrypt(a.paciente_nome),
+
+        paciente_telefone:
+          safeDecrypt(a.paciente_telefone),
+
+        doencas:
+          dadosClinicos.doenca ||
+          dadosClinicos.condicao ||
+          'N/A',
+
+        medicacao_em_uso:
+          dadosClinicos.medicacao_em_uso ||
+          'N/A',
+
+        tempo_doenca:
+          dadosClinicos.tempo_doenca ||
+          'N/A',
+
+        receita_vencida_dias:
+          dadosClinicos.receita_vencida_dias ||
+          'N/A',
+
+        tipo:
+          dadosClinicos.tipo ||
+          'OUTRO',
+
+        elegivel_protocolo:
+          dadosClinicos.elegivel_protocolo ||
+          false,
+
         status: a.status,
+
         criado_em: a.criado_em,
+
         pago_em: a.pago_em
       }
     })
@@ -808,9 +839,17 @@ app.get('/api/fila', auth, async (req, res) => {
       total: filaFormatada.length,
       atendimentos: filaFormatada
     })
+
   } catch (e) {
-    console.error('❌ Erro ao listar fila:', e.message)
-    res.status(500).json({ error: 'Erro ao carregar fila' })
+
+    console.error(
+      '❌ Erro ao listar fila:',
+      e.message
+    )
+
+    res.status(500).json({
+      error: 'Erro ao carregar fila'
+    })
   }
 })
 
