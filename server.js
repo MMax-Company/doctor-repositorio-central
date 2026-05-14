@@ -25,6 +25,8 @@ const memed = require('./memed')
 const app = express()
 const PORT = process.env.PORT || 3002
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`
+const MEMED_FRONT_KEY =
+  process.env.MEMED_API_KEY || ''
 
 // ========================
 // 🔒 ESTADOS VÁLIDOS DO FLUXO (Ponto 6)
@@ -2246,7 +2248,7 @@ window.addEventListener('load', () => {
       .then(data => {
         if (data.token) {
       MdHub.init({
-        apiKey: "${process.env.MEMED_API_KEY}",
+        apiKey: "${MEMED_FRONT_KEY}",
         token: data.token
         })
           console.log('✅ Memed inicializada com token seguro')
