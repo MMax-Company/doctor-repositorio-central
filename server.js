@@ -2206,29 +2206,133 @@ window.addEventListener('load', () => {
 // ========================
 // 📜 HISTÓRICO DE DECISÕES (Ponto 7)
 // ========================
-app.get('/api/decisoes', auth, async (req, res) => {
+app.post('/api/decisao/:id', auth, async (req, res) => {
   try {
-    const logs = await db.getDecisoesLog()
+    const { id } = req.params
+
+    const {
+      decisao,
+      orientacoes,
+      medicamento,
+      posologia,
+      receita_memed_id,
+      memed_payload
+    } = req.body
+
+    const at = await db.buscarAtendimentoPorId(id)
+
+    if (!at) {
+      return res.status(404).json({
+        error: 'Atendimento não encontrado'
+      })
+    }
+
+    if (
+      at.status !== ESTADOS_FLUXO.PRONTO_PARA_DECISAO &&
+      at.status !== ESTADOS_FLUXO.EM_ATENDIMENTO
+    ) {
+      return res.status(400).json({
+        error: `Status inválido: ${at.status}`
+      })
+    }
+
+    const dadosClinicos =
+      at.dados_clinicos || {}
+
+    let novoStatus = null
+
+    if (
+      decisao === 'APROVAR' ||
+      decisao === ESTADOS_FLUXO.APROVADO
+    ) {
+      novoStatus = ESTADOS_FLUXO.APROVADO
+    }
+
+    if (
+      decisao === 'RECUSAR' ||
+      decisao === ESTADOS_FLUXO.RECUSADO
+    ) {
+      novoStatus = ESTADOS_FLUXO.RECUSADO
+    }
+
+    if (!novoStatus) {
+      return res.status(400).json({
+        error: 'Decisão inválida'
+      })
+    }
+
+    const decisaoData = {
+      status: novoStatus,
+      data: new Date().toISOString(),
+      medico: req.usuario?.role || 'medico',
+      observacao: orientacoes || '',
+      medicamento_prescrito:
+        medicamento ||
+        dadosClinicos.medicacao_em_uso ||
+        null,
+      posologia:
+        posologia ||
+        dadosClinicos.posologia_atual ||
+        null,
+      receita_memed_id:
+        receita_memed_id || null,
+      memed_payload:
+        memed_payload || null
+    }
+
+    await db.atualizarStatus(
+      id,
+      novoStatus,
+      decisaoData
+    )
+
+    await db.salvarDecisaoLog({
+      atendimento_id: id,
+      medico: req.usuario?.role || 'medico',
+      decisao: novoStatus,
+      medicamento:
+        decisaoData.medicamento_prescrito,
+      posologia:
+        decisaoData.posologia,
+      observacao:
+        decisaoData.observacao,
+      dados_clinicos: dadosClinicos
+    })
+
+    const telefone =
+      safeDecrypt(at.paciente_telefone)
+
+    const nome =
+      safeDecrypt(at.paciente_nome)
+
+    if (telefone) {
+
+      const mensagem =
+        novoStatus === ESTADOS_FLUXO.APROVADO
+          ? `✅ Olá ${nome}, sua receita foi aprovada com sucesso.`
+          : `❌ Olá ${nome}, sua solicitação não foi aprovada.`
+
+      await enviarWhatsAppOficial(
+        telefone,
+        mensagem
+      )
+    }
 
     res.json({
-      total: logs.length,
-      aprovados: logs.filter(l => l.decisao === 'APROVAR').length,
-      recusados: logs.filter(l => l.decisao === 'RECUSAR').length,
-      decisoes: logs
+      success: true,
+      status: novoStatus
     })
-  } catch (e) {
-    console.error('❌ Erro ao buscar decisões:', e.message)
-    res.status(500).json({ error: 'Erro ao carregar histórico' })
-  }
-})
 
-// Log de decisões de um atendimento específico
-app.get('/api/decisoes/:atendimentoId', auth, async (req, res) => {
-  try {
-    const logs = await db.getDecisoesLog(req.params.atendimentoId)
-    res.json({ total: logs.length, decisoes: logs })
   } catch (e) {
-    res.status(500).json({ error: e.message })
+
+    console.error(
+      '❌ Erro decisão médica:',
+      e.message
+    )
+
+    res.status(500).json({
+      error: e.message
+    })
   }
 })
 
@@ -2237,16 +2341,36 @@ app.get('/api/decisoes/:atendimentoId', auth, async (req, res) => {
 // ========================
 app.put('/api/decisao/:id/revisar', auth, async (req, res) => {
   try {
-    const { id } = req.params
-    const { novaDecisao, motivoRevisao, observacao, medicamento, posologia } = req.body
 
-    if (!novaDecisao || (novaDecisao !== 'APROVAR' && novaDecisao !== 'RECUSAR')) {
-      return res.status(400).json({ error: 'Nova decisão inválida. Use "APROVAR" ou "RECUSAR"' })
+    const { id } = req.params
+
+    const {
+      novaDecisao,
+      motivoRevisao,
+      observacao,
+      medicamento,
+      posologia
+    } = req.body
+
+    const decisoesValidas = [
+      'APROVAR',
+      'RECUSAR',
+      ESTADOS_FLUXO.APROVADO,
+      ESTADOS_FLUXO.RECUSADO
+    ]
+
+    if (!novaDecisao || !decisoesValidas.includes(novaDecisao)) {
+      return res.status(400).json({
+        error: 'Nova decisão inválida'
+      })
     }
 
     const at = await db.buscarAtendimentoPorId(id)
+
     if (!at) {
-      return res.status(404).json({ error: 'Atendimento não encontrado' })
+      return res.status(404).json({
+        error: 'Atendimento não encontrado'
+      })
     }
 
     // Só pode revisar decisões já tomadas (APROVADO ou RECUSADO)
@@ -2256,78 +2380,134 @@ app.put('/api/decisao/:id/revisar', auth, async (req, res) => {
       })
     }
 
-    const dadosClinicos = at.dados_clinicos || at.triagem || {}
-    const statusAnterior = at.status
-    const novoStatus = novaDecisao === 'APROVAR' ? ESTADOS_FLUXO.APROVADO : ESTADOS_FLUXO.RECUSADO
+    const dadosClinicos =
+      at.dados_clinicos ||
+      at.triagem ||
+      {}
 
-    // Se aprovando, exigir medicamento real (Ponto 4)
-    if (novaDecisao === 'APROVAR') {
-      const medicamentoFinal = medicamento || dadosClinicos.medicacao_em_uso
-      if (!medicamentoFinal || medicamentoFinal.trim().length === 0) {
+    const statusAnterior = at.status
+
+    const aprovacao =
+      novaDecisao === 'APROVAR' ||
+      novaDecisao === ESTADOS_FLUXO.APROVADO
+
+    const novoStatus = aprovacao
+      ? ESTADOS_FLUXO.APROVADO
+      : ESTADOS_FLUXO.RECUSADO
+
+    // ========================
+    // ✅ APROVAÇÃO
+    // ========================
+    if (aprovacao) {
+
+      const medicamentoFinal =
+        medicamento ||
+        dadosClinicos.medicacao_em_uso
+
+      if (
+        !medicamentoFinal ||
+        medicamentoFinal.trim().length === 0
+      ) {
         return res.status(400).json({
-          error: 'Medicação obrigatória para aprovação na revisão.'
+          error: 'Medicação obrigatória para aprovação na revisão'
         })
       }
 
-      const posologiaFinal = posologia || dadosClinicos.posologia_atual || 'Uso contínuo conforme orientação médica'
+      const posologiaFinal =
+        posologia ||
+        dadosClinicos.posologia_atual ||
+        'Uso contínuo conforme orientação médica'
 
       const decisaoData = {
-        status: novoStatus,
+        status: ESTADOS_FLUXO.APROVADO,
         data: new Date().toISOString(),
         medico: req.usuario?.role || 'medico',
-        observacao: observacao || `Revisão: ${motivoRevisao || 'Reanálise do caso'}`,
+        observacao:
+          observacao ||
+          `Revisão: ${motivoRevisao || 'Reanálise do caso'}`,
         medicamento_prescrito: medicamentoFinal,
         posologia: posologiaFinal
       }
 
-      // ✅ CORRIGIDO: usa ESTADOS_FLUXO.APROVADO
-      await db.atualizarStatus(id, ESTADOS_FLUXO.APROVADO, decisaoData)
+      await db.atualizarStatus(
+        id,
+        ESTADOS_FLUXO.APROVADO,
+        decisaoData
+      )
 
-      // Log de revisão (Ponto 7)
       await db.salvarDecisaoLog({
         atendimento_id: id,
         medico: req.usuario?.role || 'medico',
         decisao: 'REVISAO_APROVAR',
         medicamento: medicamentoFinal,
         posologia: posologiaFinal,
-        observacao: `Revisão de ${statusAnterior} para APROVADO. Motivo: ${motivoRevisao || 'Reanálise'}`,
+        observacao:
+          `Revisão de ${statusAnterior} para APROVADO. Motivo: ${motivoRevisao || 'Reanálise'}`,
         dados_clinicos: dadosClinicos
       })
+
     } else {
+
+      // ========================
+      // ❌ RECUSA
+      // ========================
+
       const decisaoData = {
-        status: novoStatus,
+        status: ESTADOS_FLUXO.RECUSADO,
         data: new Date().toISOString(),
         medico: req.usuario?.role || 'medico',
-        observacao: observacao || `Revisão: ${motivoRevisao || 'Reanálise do caso'}`
+        observacao:
+          observacao ||
+          `Revisão: ${motivoRevisao || 'Reanálise do caso'}`
       }
 
-      // ✅ CORRIGIDO: usa ESTADOS_FLUXO.RECUSADO
-      await db.atualizarStatus(id, ESTADOS_FLUXO.RECUSADO, decisaoData)
+      await db.atualizarStatus(
+        id,
+        ESTADOS_FLUXO.RECUSADO,
+        decisaoData
+      )
 
-      // Log de revisão (Ponto 7)
       await db.salvarDecisaoLog({
         atendimento_id: id,
         medico: req.usuario?.role || 'medico',
         decisao: 'REVISAO_RECUSAR',
         medicamento: null,
         posologia: null,
-        observacao: `Revisão de ${statusAnterior} para RECUSADO. Motivo: ${motivoRevisao || 'Reanálise'}`,
+        observacao:
+          `Revisão de ${statusAnterior} para RECUSADO. Motivo: ${motivoRevisao || 'Reanálise'}`,
         dados_clinicos: dadosClinicos
       })
     }
 
-    // Notificar paciente sobre a revisão
-    const telefone = safeDecrypt(at.paciente_telefone)
-    const nome = safeDecrypt(at.paciente_nome)
+    // ========================
+    // 📲 NOTIFICAÇÃO WHATSAPP
+    // ========================
+
+    const telefone =
+      safeDecrypt(at.paciente_telefone)
+
+    const nome =
+      safeDecrypt(at.paciente_nome)
+
     if (telefone) {
-      const mensagem = `🔄 *REVISÃO MÉDICA* 🔄\n\n` +
+
+      const mensagem =
+        `🔄 *REVISÃO MÉDICA* 🔄\n\n` +
         `Olá ${nome}, sua solicitação foi revisada.\n` +
         `Status anterior: ${statusAnterior}\n` +
         `Novo status: ${novoStatus}\n\n` +
         `📝 Motivo: ${motivoRevisao || 'Reanálise do caso'}\n\n` +
         `👨‍⚕️ Doctor Prescreve`
-      await enviarWhatsAppOficial(telefone, mensagem)
+
+      await enviarWhatsAppOficial(
+        telefone,
+        mensagem
+      )
     }
+
+    // ========================
+    // ✅ RESPOSTA FINAL
+    // ========================
 
     res.json({
       success: true,
@@ -2339,8 +2519,15 @@ app.put('/api/decisao/:id/revisar', auth, async (req, res) => {
     })
 
   } catch (e) {
-    console.error('❌ Erro ao revisar decisão:', e.message)
-    res.status(500).json({ error: 'Erro ao revisar decisão' })
+
+    console.error(
+      '❌ Erro ao revisar decisão:',
+      e.message
+    )
+
+    res.status(500).json({
+      error: 'Erro ao revisar decisão'
+    })
   }
 })
 
