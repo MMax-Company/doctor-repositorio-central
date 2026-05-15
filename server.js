@@ -1366,43 +1366,48 @@ app.get('/api/memed/status', auth, async (req, res) => {
 // ========================
 // 📄 MEMED: PRESCRIÇÃO
 // ========================
-   app.post('/api/memed/prescricao', auth, async (req, res) => {
-    try {
+  app.post('/api/memed/prescricao', auth, async (req, res) => {
+  try {
     const { atendimentoId, medicamento, posologia, observacao } = req.body;
     
-    console.log(`📝 Gerando receita para ${atendimentoId}`);
-    
-    // Buscar atendimento
     const at = await db.buscarAtendimentoPorId(atendimentoId);
     if (!at) {
       return res.status(404).json({ error: 'Atendimento não encontrado' });
     }
     
-    // Atualizar status
-    await db.atualizarStatus(atendimentoId, 'APROVADO', {
-      medicamento_prescrito: medicamento,
-      posologia: posologia,
-      observacao: observacao,
-      data_decisao: new Date().toISOString()
-    });
+    const dadosPaciente = {
+      paciente_nome: safeDecrypt(at.paciente_nome),
+      paciente_telefone: safeDecrypt(at.paciente_telefone),
+      paciente_cpf: safeDecrypt(at.paciente_cpf)
+    };
     
-    // URL do PDF
-    const pdfUrl = `${BASE_URL}/api/receita/${atendimentoId}/pdf`;
+    const resultado = await memed.gerarPrescricaoMemed(dadosPaciente, medicamento, posologia, observacao);
     
-    // WhatsApp
-    const telefone = safeDecrypt(at.paciente_telefone);
-    const nome = safeDecrypt(at.paciente_nome);
-    
-    if (telefone) {
-      const msg = `✅ RECEITA APROVADA ✅\n\nOlá ${nome},\n\nSua receita foi aprovada!\n\n📄 Baixe: ${pdfUrl}\n\n💊 ${medicamento}\n📝 ${posologia}\n\nDoctor Prescreve`;
-      await enviarWhatsAppOficial(telefone, msg);
+    if (resultado.success) {
+      await db.atualizarStatus(atendimentoId, ESTADOS_FLUXO.RECEITA_EMITIDA, {
+        memed_prescription_id: resultado.prescriptionId,
+        memed_pdf_url: resultado.pdfUrl,
+        memed_payload: resultado.fullData
+      });
+      
+      const telefone = dadosPaciente.paciente_telefone;
+      const nome = dadosPaciente.paciente_nome;
+      const mensagem = `✅ *RECEITA DIGITAL* ✅\n\nOlá ${nome},\n\nSua receita foi gerada!\n\n📄 Baixe aqui: ${resultado.pdfUrl}\n\n👨‍⚕️ Doctor Prescreve`;
+      await enviarWhatsAppOficial(telefone, mensagem);
+      
+      res.json({ success: true, pdfUrl: resultado.pdfUrl, prescriptionId: resultado.prescriptionId });
+    } else {
+      const pdfUrl = `${BASE_URL}/api/receita/${atendimentoId}/pdf`;
+      res.json({ success: true, pdfUrl: pdfUrl, fallback: true, warning: resultado.error });
     }
     
-    res.json({ success: true, pdfUrl: pdfUrl });
-    
-  } catch (error) {
-    console.error('❌ Erro:', error);
-    res.status(500).json({ error: error.message });
+  } catch (e) {
+    console.error('❌ MEMED PRESCRICAO ERROR:');
+    console.error(e.response?.data || e);
+    res.status(500).json({
+      error: e.message,
+      detalhes: e.response?.data || null
+    });
   }
 });
 
@@ -1863,9 +1868,6 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
   }
 })
 
-// ========================
-// 🔐 MEMED: TOKEN (FALLBACK)
-// ========================
 // ========================
 // 🔐 MEMED: TOKEN (FALLBACK)
 // ========================
