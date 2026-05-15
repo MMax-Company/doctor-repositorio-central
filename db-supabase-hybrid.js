@@ -5,6 +5,7 @@
 const { createClient } = require('@supabase/supabase-js')
 const fs = require('fs')
 const path = require('path')
+const ws = require('ws')
 
 // ========================
 // CONFIGURAÇÃO
@@ -15,7 +16,11 @@ if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true })
 // Supabase (se configurado)
 let supabase = null
 if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
-  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
+    realtime: {
+      transport: ws
+    }
+  })
   console.log('✅ Supabase cliente inicializado')
 } else {
   console.warn('⚠️ SUPABASE_URL ou SUPABASE_SERVICE_KEY não configurados. Usando apenas JSON.')
@@ -81,6 +86,9 @@ async function salvarAtendimento(atendimento) {
         pago_em: atendimento.pago_em,
         dados_clinicos: atendimento.dados_clinicos || atendimento.triagem,
         decisao: atendimento.decisao,
+        memed_prescription_id: atendimento.memed_prescription_id,
+        memed_pdf_url: atendimento.memed_pdf_url,
+        memed_payload: atendimento.memed_payload,
         criado_em: atendimento.criadoEm || atendimento.criado_em || new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
@@ -202,7 +210,7 @@ async function getAtendimentos() {
   return supabaseData
 }
 
-// Listar atendimentos por status (PAGO_AGUARDANDO_AVALIACAO)
+// Listar atendimentos por status
 async function getAtendimentosPorStatus(status) {
   const atendimentos = await getAtendimentos()
   return atendimentos.filter(a => a.status === status)
@@ -250,13 +258,55 @@ async function atualizarStatus(id, novoStatus, dadosAdicionais = {}) {
   return supabaseOk
 }
 
-// Get fila válida (pagamento true + elegivel true + status FILA ou PRONTO_PARA_DECISAO)
+// Atualizar status de pagamento
+async function atualizarStatusPagamento(id, pagamento, novoStatus) {
+  let supabaseOk = false
+  
+  // 1. Atualizar Supabase
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from('atendimentos')
+        .update({
+          pagamento: pagamento,
+          status: novoStatus,
+          pago_em: pagamento ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+      
+      if (!error) {
+        supabaseOk = true
+        console.log(`✅ Supabase: Pagamento ${id} atualizado para ${pagamento}`)
+      }
+    } catch (e) {}
+  }
+  
+  // 2. Atualizar JSON
+  const atendimentos = readJSON('atendimentos.json')
+  const index = atendimentos.findIndex(a => a.id === id)
+  if (index >= 0) {
+    atendimentos[index] = {
+      ...atendimentos[index],
+      pagamento: pagamento,
+      status: novoStatus,
+      pago_em: pagamento ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString()
+    }
+    writeJSON('atendimentos.json', atendimentos)
+    console.log(`✅ JSON: Pagamento ${id} atualizado para ${pagamento}`)
+  }
+  
+  return supabaseOk
+}
+
+// Get fila válida (pagamento true + elegivel true + status FILA)
 async function getFilaValida() {
   const atendimentos = await getAtendimentos()
   return atendimentos.filter(a => 
     a.pagamento === true && 
     a.elegivel === true && 
-    (a.status === 'FILA' || a.status === 'PRONTO_PARA_DECISAO')
+    a.status === 'FILA'
   )
 }
 
@@ -306,8 +356,10 @@ async function salvarReceita(receita) {
         data_emissao: receita.data_emissao,
         data_validade: receita.data_validade,
         assinatura_digital: receita.assinatura_digital,
-        status: receita.status
-      })
+        status: receita.status,
+        memed_prescription_id: receita.memed_prescription_id,
+        created_at: new Date().toISOString()
+      }, { onConflict: 'id' })
     } catch (e) {}
   }
   
@@ -333,13 +385,52 @@ async function buscarReceitaPorId(id) {
   return receitas.find(r => r.id === id) || null
 }
 
+async function listarReceitasPorAtendimento(atendimentoId) {
+  // Tentar Supabase primeiro
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('receitas')
+        .select('*')
+        .eq('atendimento_id', atendimentoId)
+        .order('data_emissao', { ascending: false })
+      
+      if (!error && data) return data
+    } catch (e) {}
+  }
+  
+  // Fallback JSON
+  const receitas = readJSON('receitas.json')
+  return receitas.filter(r => r.atendimentoId === atendimentoId)
+}
+
+async function atualizarStatusReceita(id, status, motivo = null) {
+  // Atualizar JSON
+  const receitas = readJSON('receitas.json')
+  const index = receitas.findIndex(r => r.id === id)
+  if (index >= 0) {
+    receitas[index].status = status
+    if (motivo) receitas[index].motivo_cancelamento = motivo
+    writeJSON('receitas.json', receitas)
+  }
+  
+  // Tentar Supabase
+  if (supabase) {
+    try {
+      const updateData = { status }
+      if (motivo) updateData.motivo_cancelamento = motivo
+      await supabase.from('receitas').update(updateData).eq('id', id)
+    } catch (e) {}
+  }
+}
+
 // ========================
 // 4. FILA DE SUPORTE
 // ========================
 async function adicionarFilaSuporte(telefone, nome, mensagem = '') {
   const suporte = readJSON('fila_suporte.json')
   const novo = {
-    id: suporte.length + 1,
+    id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
     telefone,
     nome,
     mensagem,
@@ -477,7 +568,6 @@ async function initDB() {
   // Garantir que as tabelas existem no Supabase
   if (supabase) {
     try {
-      // Tenta criar a tabela se não existir (opcional, boa prática)
       const { error } = await supabase.from('atendimentos').select('id', { count: 'exact', head: true })
       if (error && error.message.includes('does not exist')) {
         console.warn('⚠️ Tabela "atendimentos" não existe no Supabase. Execute o SQL de criação.')
@@ -492,7 +582,6 @@ async function initDB() {
 
 async function closeConnection() {
   console.log('🔌 Fechando conexões...')
-  // Supabase não precisa de close, JSON também não
 }
 
 // ========================
@@ -502,10 +591,11 @@ module.exports = {
   // Atendimentos
   salvarAtendimento,
   buscarAtendimentoPorId,
-  buscarAtendimentoPorMemedId,  // <-- novo
+  buscarAtendimentoPorMemedId,
   getAtendimentos,
-  getAtendimentosPorStatus,      // <-- novo
+  getAtendimentosPorStatus,
   atualizarStatus,
+  atualizarStatusPagamento,
   getFilaValida,
   
   // Estatísticas
@@ -514,6 +604,8 @@ module.exports = {
   // Receitas
   salvarReceita,
   buscarReceitaPorId,
+  listarReceitasPorAtendimento,
+  atualizarStatusReceita,
   
   // Fila suporte
   adicionarFilaSuporte,
