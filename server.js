@@ -924,8 +924,8 @@ app.post('/api/fila/pegar-proximo', auth, async (req, res) => {
 // 🏥 PAINEL MEDICO
 // ========================
 app.get('/painel-medico', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'))
-})
+  res.sendFile(path.join(__dirname, 'public', 'painel-medico.html'));
+});
 
 // ========================
 // 📜 HISTÓRICO DE DECISÕES
