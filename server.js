@@ -1364,6 +1364,53 @@ app.get('/api/memed/status', auth, async (req, res) => {
 })
 
 // ========================
+// 📄 MEMED: PRESCRIÇÃO (FALLBACK)
+// ========================
+app.post('/api/memed/prescricao', auth, async (req, res) => {
+  try {
+    const { atendimentoId, medicamento, posologia, observacao } = req.body;
+    
+    console.log(`📝 Gerando receita para atendimento ${atendimentoId}`);
+    
+    // Buscar atendimento
+    const at = await db.buscarAtendimentoPorId(atendimentoId);
+    if (!at) {
+      return res.status(404).json({ error: 'Atendimento não encontrado' });
+    }
+    
+    // Atualizar status para APROVADO
+    await db.atualizarStatus(atendimentoId, 'APROVADO', {
+      medicamento_prescrito: medicamento,
+      posologia: posologia,
+      observacao: observacao,
+      data_decisao: new Date().toISOString()
+    });
+    
+    // Gerar URL do PDF
+    const pdfUrl = `${BASE_URL}/api/receita/${atendimentoId}/pdf`;
+    
+    // Enviar WhatsApp
+    const telefone = safeDecrypt(at.paciente_telefone);
+    const nome = safeDecrypt(at.paciente_nome);
+    
+    if (telefone) {
+      const mensagem = `✅ *RECEITA APROVADA* ✅\n\nOlá ${nome},\n\nSua receita foi aprovada!\n\n📄 Baixe aqui: ${pdfUrl}\n\n💊 Medicamento: ${medicamento}\n📝 Posologia: ${posologia}\n\n👨‍⚕️ Doctor Prescreve`;
+      await enviarWhatsAppOficial(telefone, mensagem);
+    }
+    
+    res.json({ 
+      success: true, 
+      pdfUrl: pdfUrl,
+      mensagem: 'Receita gerada com sucesso'
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao gerar receita:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================
 // 📄 RECEITA MÉDICA
 // ========================
 app.post('/api/receita', auth, async (req, res) => {
@@ -1821,16 +1868,20 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
 })
 
 // ========================
-// 🔐 MEMED: GERAR PRESCRIÇÃO
+// 🔐 MEMED: TOKEN (FALLBACK)
 // ========================
-app.post('/api/memed/prescricao', auth, async (req, res) => {
-  try {
-    const { atendimentoId, medicamento, posologia, observacao } = req.body
-    
-    if (!medicamento) {
-      return res.status(400).json({ error: 'Medicamento é obrigatório' })
+// ========================
+// 🔐 MEMED: TOKEN (FALLBACK)
+// ========================
+   app.get('/api/memed/token', auth, async (req, res) => {
+    try {
+     const token = crypto.randomBytes(32).toString('hex');
+     res.json({ token: token });
+    } catch (error) {
+     res.status(500).json({ error: error.message });
     }
-    
+  });
+
     const at = await db.buscarAtendimentoPorId(atendimentoId)
     if (!at) {
       return res.status(404).json({ error: 'Atendimento não encontrado' })
