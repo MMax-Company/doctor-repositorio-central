@@ -1,41 +1,31 @@
 {
-  "name": "medico-prescreve-backend",
-  "version": "1.0.0",
-  "description": "Sistema de telemedicina para renovação de receitas",
+  "name": "doctor-prescreve-backend",
+  "version": "3.0.0",
+  "description": "Doctor Prescreve - Sistema de Telemedicina",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test:memed": "node memed.test.js",
-    "dev": "nodemon server.js",
-    "generate-key": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+    "dev": "nodemon server.js"
   },
-  "keywords": [
-    "telemedicina",
-    "stripe",
-    "whatsapp",
-    "express"
-  ],
-  "author": "Marketing-cvl",
-  "license": "MIT",
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.4",
-    "@trpc/client": "^11.17.0",
-    "@trpc/server": "^11.17.0",
-    "axios": "^1.15.2",
+    "axios": "^1.6.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.22.1",
-    "express-rate-limit": "^7.1.5",
-    "helmet": "^7.1.0",
-    "jsonwebtoken": "^9.0.2",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.3.0",
+    "express": "^4.18.2",
+    "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.0",
     "pdfkit": "^0.14.0",
-    "pg": "^8.20.0",
-    "qrcode": "^1.5.4",
-    "stripe": "^14.16.0",
-    "uuid": "^9.0.1",
-    "zod": "^4.4.3"
+    "qrcode": "^1.5.0",
+    "stripe": "^14.0.0",
+    "uuid": "^9.0.0",
+    "pg": "^8.11.0",
+    "@supabase/supabase-js": "^2.39.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

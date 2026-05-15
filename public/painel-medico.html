@@ -3,79 +3,111 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Doctor Prescreve - Painel Médico Premium</title>
+  <title>Doctor Prescreve - Painel Médico</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: #f8fafc; min-height: 100vh; color: #1e293b; }
+    body { font-family: 'Inter', sans-serif; background: #f0f2f5; min-height: 100vh; color: #1e293b; font-size: 13px; }
+
+    /* Login */
     .login-wrapper { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
-    .login-card { background: rgba(255,255,255,0.98); border-radius: 32px; padding: 48px; width: 100%; max-width: 440px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
-    .login-header { text-align: center; margin-bottom: 32px; }
-    .login-icon { width: 80px; height: 80px; background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
-    .login-icon i { font-size: 40px; color: white; }
-    .login-card h2 { font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .input-group { margin-bottom: 24px; }
-    .input-group label { display: block; margin-bottom: 8px; font-weight: 500; color: #475569; }
-    .input-group input { width: 100%; padding: 14px 16px; border: 2px solid #e2e8f0; border-radius: 16px; font-size: 14px; }
+    .login-card { background: white; border-radius: 24px; padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+    .login-header { text-align: center; margin-bottom: 28px; }
+    .login-icon { width: 70px; height: 70px; background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+    .login-icon i { font-size: 32px; color: white; }
+    .login-card h2 { font-size: 22px; font-weight: 700; color: #0f172a; }
+    .input-group { margin-bottom: 20px; }
+    .input-group label { display: block; margin-bottom: 6px; font-weight: 500; color: #475569; font-size: 12px; }
+    .input-group input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 14px; }
     .input-group input:focus { outline: none; border-color: #3b82f6; }
-    .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); color: white; border: none; border-radius: 16px; font-size: 16px; font-weight: 600; cursor: pointer; }
-    .dashboard-container { display: none; padding: 24px; max-width: 1600px; margin: 0 auto; }
-    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; padding: 20px; background: white; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-    .logout-btn { background: #fee2e2; color: #ef4444; border: none; padding: 10px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 32px; }
-    .stat-card { background: white; padding: 24px; border-radius: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-    .stat-icon { width: 50px; height: 50px; background: #f1f5f9; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-    .stat-icon i { font-size: 24px; color: #3b82f6; }
-    .columns-container { display: flex; gap: 24px; overflow-x: auto; padding-bottom: 20px; }
-    .column { flex: 1; min-width: 350px; background: #f1f5f9; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-    .column-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; }
-    .column-header h3 { font-size: 14px; font-weight: 700; text-transform: uppercase; color: #64748b; }
-    .badge-count { background: #cbd5e1; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; }
-    .patient-card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.2s; }
-    .patient-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
-    .card-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
-    .patient-name { font-weight: 700; color: #0f172a; }
-    .patient-id { font-size: 11px; color: #94a3b8; font-family: monospace; }
-    .status-badge { padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+    .login-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); color: white; border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+    /* Dashboard */
+    .dashboard-container { display: none; padding: 20px; max-width: 1600px; margin: 0 auto; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 16px 20px; background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .logout-btn { background: #fee2e2; color: #ef4444; border: none; padding: 8px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 13px; }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; padding: 16px 20px; border-radius: 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .stat-icon { width: 45px; height: 45px; background: #eef2ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+    .stat-icon i { font-size: 20px; color: #2563eb; }
+    .stat-info h3 { font-size: 24px; font-weight: 700; }
+    .stat-info p { font-size: 11px; color: #64748b; }
+
+    /* Columns */
+    .columns-container { display: flex; gap: 20px; }
+    .column { flex: 1; background: white; border-radius: 20px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .column-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px; }
+    .column-header h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; color: #475569; }
+    .badge-count { background: #e2e8f0; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+
+    /* Cards */
+    .patient-card { background: #f8fafc; border-radius: 14px; padding: 14px; margin-bottom: 12px; border: 1px solid #e2e8f0; transition: all 0.2s; }
+    .patient-card:hover { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .patient-name { font-weight: 700; font-size: 14px; color: #0f172a; }
+    .patient-id { font-size: 10px; color: #64748b; font-family: monospace; margin-top: 2px; }
+    .wait-time { font-size: 10px; color: #f59e0b; background: #fef3c7; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-top: 6px; }
+    
+    /* Status Badges */
+    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
     .status-fila { background: #fef3c7; color: #92400e; }
+    .status-fila::before { content: "🟡 "; }
     .status-atendimento { background: #dbeafe; color: #1e40af; }
-    .status-decisao { background: #dcfce7; color: #166534; }
-    .info-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #64748b; margin-bottom: 6px; }
-    .info-row i { width: 16px; color: #3b82f6; }
-    .actions { display: flex; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #f1f5f9; }
-    .btn { flex: 1; padding: 10px; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .status-atendimento::before { content: "🔵 "; }
+    .status-receita-gerada { background: #dcfce7; color: #166534; }
+    .status-receita-gerada::before { content: "🟢 "; }
+    .status-receita-enviada { background: #d1fae5; color: #065f46; }
+    .status-receita-enviada::before { content: "✅ "; }
+    .status-recusado { background: #fee2e2; color: #991b1b; }
+    .status-recusado::before { content: "🔴 "; }
+
+    .info-row { font-size: 11px; color: #475569; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .info-row i { width: 14px; color: #3b82f6; font-size: 10px; }
+    .actions { display: flex; gap: 8px; margin-top: 12px; }
+    .btn { flex: 1; padding: 8px; border: none; border-radius: 10px; font-weight: 600; font-size: 11px; cursor: pointer; transition: all 0.2s; }
     .btn-primary { background: #3b82f6; color: white; }
     .btn-primary:hover { background: #2563eb; }
-    .btn-success { background: #10b981; color: white; }
-    .btn-success:hover { background: #059669; }
-    .btn-danger { background: #ef4444; color: white; }
-    .btn-danger:hover { background: #dc2626; }
     .btn-warning { background: #f59e0b; color: white; }
-    .btn-secondary { background: #64748b; color: white; }
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-    .modal-content { background: white; border-radius: 24px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; }
-    .modal-header { padding: 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-    .modal-body { padding: 24px; }
-    .close-modal { background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; }
-    .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
-    .form-group textarea, .form-group input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; }
-    .form-group textarea { min-height: 100px; resize: vertical; }
+    .btn-warning:hover { background: #d97706; }
+    .btn-outline { background: transparent; border: 1px solid #cbd5e1; color: #475569; }
+    .btn-outline:hover { background: #f1f5f9; }
+    .btn-sm { padding: 4px 8px; font-size: 10px; }
+
+    /* Drawer Lateral */
+    .drawer-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+    .drawer { position: fixed; top: 0; right: -500px; width: 500px; max-width: 90%; height: 100%; background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.1); transition: right 0.3s ease; display: flex; flex-direction: column; z-index: 1001; }
+    .drawer.open { right: 0; }
+    .drawer-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: white; }
+    .drawer-header h3 { font-size: 16px; font-weight: 700; color: #0f172a; }
+    .drawer-close { background: #f1f5f9; border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 20px; font-size: 12px; }
+    .drawer-body h4 { font-size: 13px; font-weight: 700; margin: 12px 0 8px; color: #0f172a; }
+    .drawer-body p { margin-bottom: 4px; line-height: 1.4; }
+    .info-box { background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 16px; }
+    .info-box p { font-size: 12px; margin-bottom: 4px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 12px; color: #475569; }
+    .form-group textarea { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 12px; resize: vertical; }
+    .drawer-actions { display: flex; gap: 16px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+    .btn-drawer { flex: 1; padding: 12px; border: none; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer; }
+    .btn-recusar-drawer { background: #fee2e2; color: #dc2626; }
+    .btn-recusar-drawer:hover { background: #fecaca; }
+    .btn-aprovar-drawer { background: #dcfce7; color: #16a34a; }
+    .btn-aprovar-drawer:hover { background: #bbf7d0; }
+    .btn-info-drawer { background: #e0e7ff; color: #4338ca; }
+
     .empty-state { text-align: center; padding: 40px; color: #94a3b8; }
     .empty-state i { font-size: 32px; margin-bottom: 12px; display: block; }
-    .suporte-section { background: white; border-radius: 24px; padding: 24px; margin-bottom: 32px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-    .suporte-card { background: #f8fafc; border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 4px solid #f59e0b; }
-    .tab-bar { display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
-    .tab-btn { padding: 10px 24px; background: none; border: none; font-weight: 600; cursor: pointer; border-radius: 12px; transition: all 0.2s; }
-    .tab-btn.active { background: #3b82f6; color: white; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .historico-item { padding: 12px; border-bottom: 1px solid #e2e8f0; }
-    .historico-item:hover { background: #f8fafc; }
-    .btn-revisar { background: #8b5cf6; color: white; padding: 4px 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 12px; margin-left: 10px; }
-    .chart-container { background: white; border-radius: 20px; padding: 20px; margin-bottom: 20px; }
+
+    .toast { position: fixed; bottom: 20px; right: 20px; background: #1e293b; color: white; padding: 12px 20px; border-radius: 12px; font-size: 13px; z-index: 1002; display: none; align-items: center; gap: 8px; }
+    .toast.show { display: flex; animation: fadeInUp 0.3s ease; }
+    .toast.success { background: #10b981; }
+    .toast.error { background: #ef4444; }
+    .toast.warning { background: #f59e0b; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body>
@@ -90,7 +122,7 @@
     <form id="loginForm">
       <div class="input-group">
         <label>Senha de Acesso</label>
-        <input type="password" id="senha" placeholder="******" required>
+        <input type="password" id="senha" placeholder="Digite sua senha" required>
       </div>
       <button type="submit" class="login-btn">Entrar no Painel</button>
     </form>
@@ -100,118 +132,106 @@
 
 <div id="dashboard" class="dashboard-container">
   <div class="top-bar">
-    <div><h1 style="font-size: 20px;">🩺 Painel Médico - Doctor Prescreve</h1><p style="font-size: 13px;">Sistema completo de gestão clínica</p></div>
+    <div><h1 style="font-size: 18px;">🩺 Painel Médico</h1><p style="font-size: 11px; color: #64748b;">Doctor Prescreve - Gestão Clínica</p></div>
     <button id="logoutBtn" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Sair</button>
   </div>
 
-  <div class="tab-bar">
-    <button class="tab-btn active" data-tab="atendimentos">📋 Atendimentos</button>
-    <button class="tab-btn" data-tab="suporte">🎧 Suporte</button>
-    <button class="tab-btn" data-tab="estatisticas">📊 Estatísticas</button>
-    <button class="tab-btn" data-tab="historico">📜 Histórico</button>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-icon"><i class="fas fa-clock"></i></div><div class="stat-info"><h3 id="statFila">0</h3><p>Fila</p></div></div>
+    <div class="stat-card"><div class="stat-icon"><i class="fas fa-user-md"></i></div><div class="stat-info"><h3 id="statAtendimento">0</h3><p>Atendimento</p></div></div>
+    <div class="stat-card"><div class="stat-icon"><i class="fas fa-file-prescription"></i></div><div class="stat-info"><h3 id="statReceitaGerada">0</h3><p>Receita Gerada</p></div></div>
+    <div class="stat-card"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="stat-info"><h3 id="statReceitaEnviada">0</h3><p>WhatsApp</p></div></div>
   </div>
 
-  <div id="tabAtendimentos" class="tab-content active">
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="stat-info"><h3 id="statTotal">0</h3><p>Total</p></div></div>
-      <div class="stat-card"><div class="stat-icon"><i class="fas fa-clock"></i></div><div class="stat-info"><h3 id="statFila">0</h3><p>Na Fila</p></div></div>
-      <div class="stat-card"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="stat-info"><h3 id="statAprovados">0</h3><p>Aprovados</p></div></div>
-      <div class="stat-card"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div class="stat-info"><h3 id="statTaxaAprovacao">0%</h3><p>Taxa Aprovação</p></div></div>
-    </div>
-
-    <div class="columns-container">
-      <div class="column"><div class="column-header"><h3><i class="fas fa-hourglass-half"></i> Fila</h3><span class="badge-count" id="countFila">0</span></div><div id="filaColuna"></div></div>
-      <div class="column"><div class="column-header"><h3><i class="fas fa-user-md"></i> Atendimento</h3><span class="badge-count" id="countAtendimento">0</span></div><div id="atendimentoColuna"></div></div>
-      <div class="column"><div class="column-header"><h3><i class="fas fa-clipboard-check"></i> Decisão</h3><span class="badge-count" id="countDecisao">0</span></div><div id="decisaoColuna"></div></div>
-    </div>
+  <div class="columns-container">
+    <div class="column"><div class="column-header"><h3><i class="fas fa-hourglass-half"></i> FILA DE ESPERA</h3><span class="badge-count" id="countFila">0</span></div><div id="filaColuna"></div></div>
+    <div class="column"><div class="column-header"><h3><i class="fas fa-user-md"></i> EM ATENDIMENTO</h3><span class="badge-count" id="countAtendimento">0</span></div><div id="atendimentoColuna"></div></div>
+    <div class="column"><div class="column-header"><h3><i class="fas fa-file-prescription"></i> DOCUMENTOS DIGITAIS</h3><span class="badge-count" id="countReceita">0</span></div><div id="receitaColuna"></div></div>
   </div>
+</div>
 
-  <div id="tabSuporte" class="tab-content">
-    <div class="suporte-section">
-      <h3><i class="fas fa-headset"></i> Chamados de Suporte</h3>
-      <div id="suportesPendentes">Carregando...</div>
-    </div>
+<!-- Drawer Lateral -->
+<div id="drawerOverlay" class="drawer-overlay"></div>
+<div id="drawer" class="drawer">
+  <div class="drawer-header">
+    <h3><i class="fas fa-file-medical"></i> Prontuário Médico</h3>
+    <button class="drawer-close" id="drawerClose"><i class="fas fa-times"></i></button>
   </div>
-
-  <div id="tabEstatisticas" class="tab-content">
-    <div class="chart-container">
-      <canvas id="decisoesChart" width="400" height="200"></canvas>
+  <div class="drawer-body">
+    <input type="hidden" id="drawerAtendimentoId">
+    <div class="info-box">
+      <p><strong>👤 Nome:</strong> <span id="drawerPacienteNome"></span></p>
+      <p><strong>📱 Telefone:</strong> <span id="drawerPacienteTel"></span></p>
+      <p><strong>🩺 Condição:</strong> <span id="drawerDoenca"></span></p>
+      <p><strong>💊 Medicação:</strong> <span id="drawerMedicacao"></span></p>
     </div>
-    <div class="stats-grid" id="statsDecisoes"></div>
-  </div>
-
-  <div id="tabHistorico" class="tab-content">
-    <div style="background: white; border-radius: 20px; padding: 20px;">
-      <h3>📜 Histórico de Decisões Médicas</h3>
-      <div id="historicoDecisoes"></div>
+    <h4>📋 Queixa</h4>
+    <p id="drawerQueixa" style="background:#f8fafc;padding:8px;border-radius:8px;margin-bottom:12px;"></p>
+    <h4>📖 História</h4>
+    <p id="drawerHistoria" style="background:#f8fafc;padding:8px;border-radius:8px;margin-bottom:12px;"></p>
+    <h4>🔬 Exame Físico</h4>
+    <p id="drawerExame" style="background:#f8fafc;padding:8px;border-radius:8px;margin-bottom:12px;"></p>
+    <h4>📝 Conduta</h4>
+    <p id="drawerConduta" style="background:#f8fafc;padding:8px;border-radius:8px;margin-bottom:16px;"></p>
+    <div class="form-group">
+      <label><i class="fas fa-comment"></i> Observação (opcional)</label>
+      <textarea id="drawerObservacao" rows="3" placeholder="Digite uma observação..."></textarea>
+    </div>
+    <div class="drawer-actions">
+      <button class="btn-drawer btn-recusar-drawer" id="drawerBtnRecusar">❌ RECUSAR</button>
+      <button class="btn-drawer btn-aprovar-drawer" id="drawerBtnAprovar">✅ APROVAR</button>
     </div>
   </div>
 </div>
 
-<div id="modalProntuario" class="modal-overlay">
-  <div class="modal-content">
-    <div class="modal-header"><h3>📋 Prontuário Eletrônico</h3><button class="close-modal" onclick="fecharModal()"><i class="fas fa-times"></i></button></div>
-    <div class="modal-body">
-      <input type="hidden" id="modalAtendimentoId">
-      <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 20px;">
-        <h4>Dados do Paciente</h4>
-        <p><strong>Nome:</strong> <span id="modalPacienteNome"></span></p>
-        <p><strong>Telefone:</strong> <span id="modalPacienteTel"></span></p>
-        <p><strong>Condição:</strong> <span id="modalDoenca"></span></p>
-        <p><strong>Medicação Atual:</strong> <span id="modalMedicacao"></span></p>
-      </div>
-      <div class="form-group"><label>Queixa Principal</label><textarea id="modalQueixa" readonly style="background: #f1f5f9;"></textarea></div>
-      <div class="form-group"><label>História da Doença</label><textarea id="modalHistoria" readonly style="background: #f1f5f9;"></textarea></div>
-      <div class="form-group"><label>Exame Físico</label><textarea id="modalExame" readonly style="background: #f1f5f9;"></textarea></div>
-      <div class="form-group"><label>Conduta</label><textarea id="modalConduta" readonly style="background: #f1f5f9;"></textarea></div>
-      <div class="form-group"><label>Medicamento (opcional)</label><input type="text" id="modalMedicamento" placeholder="Deixe em branco para usar o atual"></div>
-      <div class="form-group"><label>Posologia (opcional)</label><textarea id="modalPosologia" placeholder="Deixe em branco para usar a atual"></textarea></div>
-      <div class="actions">
-        <button class="btn btn-secondary" onclick="exportarProntuario()">📥 Exportar JSON</button>
-        <button class="btn btn-secondary" onclick="gerarPDFProntuario()">📄 Gerar PDF</button>
-        <button class="btn btn-danger" onclick="recusarConsulta()">❌ Recusar</button>
-        <button class="btn btn-success" onclick="aprovarConsulta()">✅ Aprovar</button>
-      </div>
-    </div>
-  </div>
-</div>
+<div id="toast" class="toast"></div>
 
 <script>
   let token = localStorage.getItem('token');
   let atendimentosData = [];
-  let atendimentoAtual = null;
-  let decisoesChart = null;
 
-  document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('loginForm').addEventListener('submit', function(e) { e.preventDefault(); fazerLogin(); });
-    document.getElementById('logoutBtn').addEventListener('click', logout);
-    
-    document.querySelectorAll('.tab-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-        this.classList.add('active');
-        document.querySelectorAll('.tab-content').forEach(function(tab) { tab.classList.remove('active'); });
-        document.getElementById('tab' + this.dataset.tab.charAt(0).toUpperCase() + this.dataset.tab.slice(1)).classList.add('active');
-        if (this.dataset.tab === 'estatisticas') carregarEstatisticasDecisoes();
-        if (this.dataset.tab === 'historico') carregarHistoricoDecisoes();
-      });
-    });
-    
-    if (token) { mostrarDashboard(); carregarDados(); carregarSuportes(); setInterval(carregarDados, 30000); }
-  });
-
-  async function fazerLogin() {
-    const senha = document.getElementById('senha').value;
-    try {
-      const res = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: senha }) });
-      const data = await res.json();
-      if (data.token) { token = data.token; localStorage.setItem('token', token); mostrarDashboard(); carregarDados(); carregarSuportes(); } 
-      else { document.getElementById('erroMsg').style.display = 'block'; }
-    } catch(e) { document.getElementById('erroMsg').style.display = 'block'; }
+  // Toast
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast ' + type + ' show';
+    setTimeout(() => toast.classList.remove('show'), 3000);
   }
 
-  function logout() { localStorage.removeItem('token'); token = null; location.reload(); }
-  function mostrarDashboard() { document.getElementById('loginScreen').style.display = 'none'; document.getElementById('dashboard').style.display = 'block'; }
+  // Login
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const senha = document.getElementById('senha').value;
+    try {
+      const res = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha }) });
+      const data = await res.json();
+      if (data.token) {
+        token = data.token;
+        localStorage.setItem('token', token);
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        carregarDados();
+        setInterval(carregarDados, 30000);
+      } else {
+        document.getElementById('erroMsg').style.display = 'block';
+      }
+    } catch(e) { document.getElementById('erroMsg').style.display = 'block'; }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    localStorage.removeItem('token');
+    location.reload();
+  });
+
+  // Drawer controls
+  document.getElementById('drawerClose').addEventListener('click', () => {
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('drawerOverlay').style.display = 'none';
+  });
+  document.getElementById('drawerOverlay').addEventListener('click', () => {
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('drawerOverlay').style.display = 'none';
+  });
 
   async function carregarDados() {
     if (!token) return;
@@ -225,223 +245,215 @@
   }
 
   function atualizarStats() {
-    const total = atendimentosData.length;
     const fila = atendimentosData.filter(a => a.status === 'FILA').length;
-    const aprovados = atendimentosData.filter(a => a.status === 'APROVADO' || a.status === 'RECEITA_EMITIDA').length;
-    const taxa = total > 0 ? Math.round((aprovados / total) * 100) : 0;
-    document.getElementById('statTotal').innerText = total;
+    const emAtendimento = atendimentosData.filter(a => a.status === 'EM_ATENDIMENTO').length;
+    const receitaGerada = atendimentosData.filter(a => a.status === 'APROVADO' || a.status === 'RECEITA_EMITIDA').length;
+    const receitaEnviada = atendimentosData.filter(a => a.whatsapp_enviado === true).length;
     document.getElementById('statFila').innerText = fila;
-    document.getElementById('statAprovados').innerText = aprovados;
-    document.getElementById('statTaxaAprovacao').innerText = taxa + '%';
+    document.getElementById('statAtendimento').innerText = emAtendimento;
+    document.getElementById('statReceitaGerada').innerText = receitaGerada;
+    document.getElementById('statReceitaEnviada').innerText = receitaEnviada;
   }
 
   function formatarTempo(data) {
     if (!data) return 'agora';
-    var diff = Math.floor((new Date() - new Date(data)) / 60000);
+    const diff = Math.floor((new Date() - new Date(data)) / 60000);
     if (diff < 1) return 'agora';
-    if (diff < 60) return diff + ' min';
-    return Math.floor(diff / 60) + 'h';
+    if (diff < 60) return 'há ' + diff + ' min';
+    const horas = Math.floor(diff / 60);
+    if (horas < 24) return 'há ' + horas + 'h';
+    return 'há ' + Math.floor(horas / 24) + 'd';
+  }
+
+  function getStatusBadge(status, whatsappEnviado) {
+    if (status === 'FILA') return '<span class="status-badge status-fila">EM FILA</span>';
+    if (status === 'EM_ATENDIMENTO') return '<span class="status-badge status-atendimento">EM ANÁLISE</span>';
+    if (status === 'APROVADO' || status === 'RECEITA_EMITIDA') {
+      if (whatsappEnviado) return '<span class="status-badge status-receita-enviada">RECEITA ENTREGUE</span>';
+      return '<span class="status-badge status-receita-gerada">RECEITA GERADA</span>';
+    }
+    if (status === 'RECUSADO') return '<span class="status-badge status-recusado">RECUSADO</span>';
+    return '<span class="status-badge">' + status + '</span>';
   }
 
   function gerarQueixa(tipo) {
-    var base = { HAS: "Paciente em acompanhamento por hipertensão arterial sistêmica, solicita renovação de receita.", DIABETES: "Paciente em acompanhamento por diabetes mellitus tipo 2, solicita continuidade do tratamento.", HIPOTIREOIDISMO: "Paciente com hipotireoidismo em tratamento, solicita renovação de medicação.", DISLIPIDEMIA: "Paciente com dislipidemia em tratamento, solicita renovação de medicação.", SAUDE_MENTAL: "Paciente em acompanhamento por transtorno de ansiedade/depressão, solicita renovação.", OUTRO: "Paciente em acompanhamento clínico, solicita renovação de medicação de uso contínuo." };
+    const base = { HAS: "Paciente em acompanhamento por hipertensão arterial sistêmica, solicita renovação de receita.", DIABETES: "Paciente em acompanhamento por diabetes mellitus tipo 2, solicita continuidade do tratamento.", HIPOTIREOIDISMO: "Paciente com hipotireoidismo em tratamento, solicita renovação de medicação.", DISLIPIDEMIA: "Paciente com dislipidemia em tratamento, solicita renovação de medicação.", SAUDE_MENTAL: "Paciente em acompanhamento por transtorno de ansiedade/depressão, solicita renovação.", OUTRO: "Paciente em acompanhamento clínico, solicita renovação de medicação de uso contínuo." };
     return base[tipo] || base.OUTRO;
   }
 
   function gerarHistoria(tipo) {
-    var historias = { HAS: "Paciente refere estabilidade do quadro pressórico. Nega cefaleia, tontura ou palpitações.", DIABETES: "Paciente nega poliúria, polidipsia ou polifagia. Refere seguimento com nutricionista.", HIPOTIREOIDISMO: "Paciente nega ganho ponderal excessivo, astenia ou intolerância ao frio.", DISLIPIDEMIA: "Paciente relata dieta hipolipídica. Nega eventos cardiovasculares prévios.", SAUDE_MENTAL: "Paciente relata melhora do humor e ansiedade com medicação atual.", OUTRO: "Paciente refere-se assintomático ao momento. Sem intercorrências." };
+    const historias = { HAS: "Paciente refere estabilidade do quadro pressórico. Nega cefaleia, tontura ou palpitações.", DIABETES: "Paciente nega poliúria, polidipsia ou polifagia. Refere seguimento com nutricionista.", HIPOTIREOIDISMO: "Paciente nega ganho ponderal excessivo, astenia ou intolerância ao frio.", DISLIPIDEMIA: "Paciente relata dieta hipolipídica. Nega eventos cardiovasculares prévios.", SAUDE_MENTAL: "Paciente relata melhora do humor e ansiedade com medicação atual.", OUTRO: "Paciente refere-se assintomático ao momento. Sem intercorrências." };
     return historias[tipo] || historias.OUTRO;
   }
 
   function gerarExameFisico(tipo) {
-    var exames = { HAS: "PA: informada pelo paciente como controlada. FC: dentro da normalidade.", DIABETES: "Paciente eutrófico. Sem lesões de pele. Extremidades preservadas.", HIPOTIREOIDISMO: "Tireoide palpável sem nódulos. Sem bócio.", DISLIPIDEMIA: "Paciente sem achados relevantes.", SAUDE_MENTAL: "Paciente lúcido, orientado, sem alterações.", OUTRO: "Consulta remota - exame físico limitado. Sem queixas ativas." };
+    const exames = { HAS: "PA: informada pelo paciente como controlada. FC: dentro da normalidade.", DIABETES: "Paciente eutrófico. Sem lesões de pele. Extremidades preservadas.", HIPOTIREOIDISMO: "Tireoide palpável sem nódulos. Sem bócio.", DISLIPIDEMIA: "Paciente sem achados relevantes.", SAUDE_MENTAL: "Paciente lúcido, orientado, sem alterações.", OUTRO: "Consulta remota - exame físico limitado. Sem queixas ativas." };
     return exames[tipo] || exames.OUTRO;
   }
 
   function gerarConduta(tipo) {
-    var condutas = { HAS: "Manter tratamento atual com anti-hipertensivo. Orientado acompanhamento regular.", DIABETES: "Manter hipoglicemiante oral. Reforçar orientação sobre dieta e atividade física.", HIPOTIREOIDISMO: "Manter levotiroxina na dose atual. Solicitar TSH para controle.", DISLIPIDEMIA: "Manter estatina. Reforçar orientação dietética.", SAUDE_MENTAL: "Manter medicação atual. Orientado psicoterapia de suporte.", OUTRO: "Manter tratamento habitual. Orientado retorno em 3 meses." };
+    const condutas = { HAS: "Manter tratamento atual com anti-hipertensivo. Orientado acompanhamento regular.", DIABETES: "Manter hipoglicemiante oral. Reforçar orientação sobre dieta e atividade física.", HIPOTIREOIDISMO: "Manter levotiroxina na dose atual. Solicitar TSH para controle.", DISLIPIDEMIA: "Manter estatina. Reforçar orientação dietética.", SAUDE_MENTAL: "Manter medicação atual. Orientado psicoterapia de suporte.", OUTRO: "Manter tratamento habitual. Orientado retorno em 3 meses." };
     return condutas[tipo] || condutas.OUTRO;
   }
 
   function renderizarColunas() {
-    var fila = atendimentosData.filter(function(a) { return a.status === 'FILA'; });
-    var emAtendimento = atendimentosData.filter(function(a) { return a.status === 'EM_ATENDIMENTO'; });
-    var prontoDecisao = atendimentosData.filter(function(a) { return a.status === 'PRONTO_PARA_DECISAO'; });
+    const fila = atendimentosData.filter(a => a.status === 'FILA');
+    const emAtendimento = atendimentosData.filter(a => a.status === 'EM_ATENDIMENTO');
+    const receita = atendimentosData.filter(a => a.status === 'APROVADO' || a.status === 'RECEITA_EMITIDA' || a.status === 'RECUSADO');
+    
     document.getElementById('countFila').innerText = fila.length;
     document.getElementById('countAtendimento').innerText = emAtendimento.length;
-    document.getElementById('countDecisao').innerText = prontoDecisao.length;
+    document.getElementById('countReceita').innerText = receita.length;
+    
     renderizarColuna('filaColuna', fila, 'fila');
     renderizarColuna('atendimentoColuna', emAtendimento, 'atendimento');
-    renderizarColuna('decisaoColuna', prontoDecisao, 'decisao');
+    renderizarColuna('receitaColuna', receita, 'receita');
   }
 
   function renderizarColuna(elementId, lista, tipo) {
-    var container = document.getElementById(elementId);
-    if (!lista || lista.length === 0) { container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Vazio</p></div>'; return; }
-    var html = '';
-    for (var i = 0; i < lista.length; i++) {
-      var a = lista[i];
-      var statusText = tipo === 'fila' ? 'Fila' : (tipo === 'atendimento' ? 'Atendimento' : 'Decisão');
-      var statusClass = 'status-' + tipo;
-      html += '<div class="patient-card"><div class="card-header"><div><div class="patient-name">' + (a.paciente_nome || 'Paciente') + '</div><div class="patient-id">ID: ' + (a.id ? a.id.substring(0, 8) : '') + '</div></div><span class="status-badge ' + statusClass + '">' + statusText + '</span></div>';
+    const container = document.getElementById(elementId);
+    if (!lista || lista.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Vazio</p></div>';
+      return;
+    }
+    
+    let html = '';
+    for (let i = 0; i < lista.length; i++) {
+      const a = lista[i];
+      const tempoEspera = formatarTempo(a.criado_em);
+      const statusBadge = getStatusBadge(a.status, a.whatsapp_enviado);
+      
+      html += '<div class="patient-card">';
+      html += '<div class="card-header">';
+      html += '<div>';
+      html += '<div class="patient-name">' + (a.paciente_nome || 'Paciente') + '</div>';
+      html += '<div class="patient-id">ID: ' + (a.id ? a.id.substring(0, 8) : '') + '</div>';
+      if (tipo === 'fila') html += '<div class="wait-time"><i class="fas fa-clock"></i> ' + tempoEspera + '</div>';
+      html += '</div>';
+      html += statusBadge;
+      html += '</div>';
+      
       html += '<div class="info-row"><i class="fas fa-notes-medical"></i> ' + (a.doencas || 'N/A') + '</div>';
-      html += '<div class="info-row"><i class="fas fa-pills"></i> ' + (a.medicacao_em_uso ? a.medicacao_em_uso.substring(0, 30) + '...' : 'N/A') + '</div>';
-      html += '<div class="info-row"><i class="fas fa-clock"></i> ' + formatarTempo(a.criado_em) + '</div><div class="actions">';
-      if (tipo === 'fila') html += '<button class="btn btn-warning" onclick="pegarProximo(\'' + a.id + '\')">👨‍⚕️ Pegar</button>';
-      if (tipo === 'atendimento') html += '<button class="btn btn-primary" onclick="abrirProntuario(\'' + a.id + '\')">📋 Prontuário</button>';
-      if (tipo === 'decisao') html += '<button class="btn btn-success" onclick="aprovarDireto(\'' + a.id + '\')">✅ Aprovar</button><button class="btn btn-danger" onclick="recusarDireto(\'' + a.id + '\')">❌ Recusar</button>';
-      html += '</div></div>';
+      html += '<div class="info-row"><i class="fas fa-pills"></i> ' + (a.medicacao_em_uso ? a.medicacao_em_uso.substring(0, 30) : 'N/A') + '</div>';
+      
+      html += '<div class="actions">';
+      if (tipo === 'fila') {
+        html += '<button class="btn btn-warning" onclick="atenderPaciente(\'' + a.id + '\')">ATENDER</button>';
+      } else if (tipo === 'atendimento') {
+        html += '<button class="btn btn-primary" onclick="abrirDrawer(\'' + a.id + '\')">PRONTUÁRIO</button>';
+      } else if (tipo === 'receita') {
+        if (a.status !== 'RECUSADO') {
+          html += '<button class="btn btn-outline btn-sm" onclick="reenviarReceita(\'' + a.id + '\')"><i class="fas fa-redo-alt"></i> REENVIAR</button>';
+          html += '<button class="btn btn-outline btn-sm" onclick="verPDFReceita(\'' + a.id + '\')"><i class="fas fa-file-pdf"></i> PDF</button>';
+        } else {
+          html += '<button class="btn btn-outline btn-sm" onclick="verMotivoRecusa(\'' + a.id + '\')"><i class="fas fa-info-circle"></i> MOTIVO</button>';
+        }
+      }
+      html += '</div>';
+      html += '</div>';
     }
     container.innerHTML = html;
   }
 
-  async function pegarProximo(id) {
+  async function atenderPaciente(id) {
     try {
-      await fetch('/api/atendimento/' + id + '/iniciar', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      abrirProntuario(id);
-    } catch(e) { 
-      console.error('Erro:', e);
-    }
-  }
-
-  async function abrirProntuario(id) {
-    try {
-      var res = await fetch('/api/atendimento/' + id, { headers: { 'Authorization': 'Bearer ' + token } });
-      var data = await res.json();
-      atendimentoAtual = data;
-      document.getElementById('modalAtendimentoId').value = id;
-      document.getElementById('modalPacienteNome').innerText = data.paciente_nome;
-      document.getElementById('modalPacienteTel').innerText = data.paciente_telefone;
-      document.getElementById('modalDoenca').innerText = data.doencas;
-      document.getElementById('modalMedicacao').innerText = data.medicacao_em_uso;
-      var tipo = data.tipo || 'OUTRO';
-      document.getElementById('modalQueixa').value = gerarQueixa(tipo);
-      document.getElementById('modalHistoria').value = gerarHistoria(tipo);
-      document.getElementById('modalExame').value = gerarExameFisico(tipo);
-      document.getElementById('modalConduta').value = gerarConduta(tipo);
-      document.getElementById('modalMedicamento').value = data.medicacao_em_uso || '';
-      document.getElementById('modalPosologia').value = '';
-      document.getElementById('modalProntuario').style.display = 'flex';
-    } catch(e) { alert('Erro ao carregar prontuário: ' + e.message); }
-  }
-
-  function fecharModal() { document.getElementById('modalProntuario').style.display = 'none'; atendimentoAtual = null; }
-
-  function exportarProntuario() {
-    if (!atendimentoAtual) return;
-    var prontuario = { paciente: atendimentoAtual, prontuario: { queixa: document.getElementById('modalQueixa').value, historia: document.getElementById('modalHistoria').value, exame: document.getElementById('modalExame').value, conduta: document.getElementById('modalConduta').value }, data_exportacao: new Date().toISOString() };
-    var dataStr = JSON.stringify(prontuario, null, 2);
-    var blob = new Blob([dataStr], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'prontuario_' + atendimentoAtual.id + '.json';
-    a.click();
-    URL.revokeObjectURL(url);
-    alert('Prontuário exportado com sucesso!');
-  }
-
-  function gerarPDFProntuario() {
-    if (!atendimentoAtual) return;
-    window.open('/api/prontuario/' + atendimentoAtual.id + '/pdf', '_blank');
-  }
-
-  async function decidir(id, decisao, medicamentoExtra, posologiaExtra) {
-    if (!confirm('Tem certeza que deseja ' + (decisao === 'APROVADO' ? 'APROVAR' : 'RECUSAR') + ' este atendimento?')) return;
-    var body = { decisao: decisao, prontuario: { queixa: document.getElementById('modalQueixa').value, historia: document.getElementById('modalHistoria').value, exame: document.getElementById('modalExame').value, conduta: document.getElementById('modalConduta').value } };
-    var medicamento = medicamentoExtra || document.getElementById('modalMedicamento').value;
-    var posologia = posologiaExtra || document.getElementById('modalPosologia').value;
-    if (medicamento) body.medicamento = medicamento;
-    if (posologia) body.posologia = posologia;
-    try {
-      var res = await fetch('/api/decisao/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) });
-      if (!res.ok) throw new Error('Erro ao registrar decisão');
-      fecharModal();
+      await fetch('/api/atendimento/' + id + '/iniciar', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+      showToast('Paciente movido para atendimento', 'success');
       carregarDados();
-      alert(decisao === 'APROVADO' ? '✅ Atendimento aprovado! Receita será gerada.' : '❌ Atendimento recusado.');
-    } catch(e) { alert('Erro: ' + e.message); }
+      abrirDrawer(id);
+    } catch(e) { showToast('Erro: ' + e.message, 'error'); }
   }
 
-  function aprovarConsulta() { decidir(document.getElementById('modalAtendimentoId').value, 'APROVADO', null, null); }
-  function recusarConsulta() { decidir(document.getElementById('modalAtendimentoId').value, 'RECUSADO', null, null); }
-  function aprovarDireto(id) { 
-    var medicamento = prompt('Medicamento:', '');
-    var posologia = prompt('Posologia:', '');
-    decidir(id, 'APROVADO', medicamento, posologia); 
-  }
-  function recusarDireto(id) { 
-    var motivo = prompt('Motivo da recusa:', '');
-    var body = { decisao: 'RECUSADO', orientacoes: motivo };
-    fetch('/api/decisao/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) }).then(function() { carregarDados(); alert('Recusado'); });
-  }
-
-  async function carregarSuportes() {
+  async function abrirDrawer(id) {
     try {
-      var res = await fetch('/api/suporte/pendentes', { headers: { 'Authorization': 'Bearer ' + token } });
-      var suportes = await res.json();
-      var container = document.getElementById('suportesPendentes');
-      if (!suportes || suportes.length === 0) { container.innerHTML = '<div class="empty-state"><i class="fas fa-check-circle"></i><p>Nenhum chamado pendente</p></div>'; return; }
-      var html = '';
-      for (var i = 0; i < suportes.length; i++) {
-        var s = suportes[i];
-        html += '<div class="suporte-card"><div class="card-header"><span class="patient-name">👤 ' + (s.nome || 'Paciente') + '</span><span class="patient-id">' + (s.telefone || '') + '</span></div><div class="info-row">' + (s.mensagem || 'Sem mensagem') + '</div><div class="info-row">Há ' + formatarTempo(s.criado_em) + '</div><button class="btn btn-warning" onclick="atenderSuporte(\'' + s.id + '\', \'' + s.telefone + '\', \'' + s.nome + '\')">📞 Atender</button></div>';
+      const res = await fetch('/api/atendimento/' + id, { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await res.json();
+      const tipo = data.tipo || 'OUTRO';
+      
+      document.getElementById('drawerAtendimentoId').value = id;
+      document.getElementById('drawerPacienteNome').innerText = data.paciente_nome;
+      document.getElementById('drawerPacienteTel').innerText = data.paciente_telefone;
+      document.getElementById('drawerDoenca').innerText = data.doencas;
+      document.getElementById('drawerMedicacao').innerText = data.medicacao_em_uso;
+      document.getElementById('drawerQueixa').innerText = gerarQueixa(tipo);
+      document.getElementById('drawerHistoria').innerText = gerarHistoria(tipo);
+      document.getElementById('drawerExame').innerText = gerarExameFisico(tipo);
+      document.getElementById('drawerConduta').innerText = gerarConduta(tipo);
+      document.getElementById('drawerObservacao').value = '';
+      
+      document.getElementById('drawer').classList.add('open');
+      document.getElementById('drawerOverlay').style.display = 'block';
+    } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+  }
+
+  document.getElementById('drawerBtnAprovar').onclick = async () => {
+    const id = document.getElementById('drawerAtendimentoId').value;
+    const observacao = document.getElementById('drawerObservacao').value;
+    const medicamento = document.getElementById('drawerMedicacao').innerText;
+    const posologia = prompt('Posologia:', '1 comprimido ao dia');
+    if (!posologia) return;
+    
+    showToast('🔄 Gerando receita...', 'warning');
+    
+    try {
+      const res = await fetch('/api/memed/prescricao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ atendimentoId: id, medicamento, posologia, observacao })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('drawerOverlay').style.display = 'none';
+        carregarDados();
+        showToast('✅ Receita gerada e enviada por WhatsApp!', 'success');
+        if (data.pdfUrl) window.open(data.pdfUrl, '_blank');
+      } else {
+        showToast('❌ Erro: ' + (data.error || 'Falha na geração'), 'error');
       }
-      container.innerHTML = html;
-    } catch(e) { document.getElementById('suportesPendentes').innerHTML = '<p style="color:red">Erro ao carregar</p>'; }
+    } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+  };
+
+  document.getElementById('drawerBtnRecusar').onclick = async () => {
+    const id = document.getElementById('drawerAtendimentoId').value;
+    const observacao = document.getElementById('drawerObservacao').value;
+    const motivo = prompt('Motivo da recusa:', 'Não elegível para renovação remota');
+    if (!motivo) return;
+    
+    try {
+      const res = await fetch('/api/decisao/' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ decisao: 'RECUSADO', orientacoes: motivo + (observacao ? '\n\nObs: ' + observacao : '') })
+      });
+      if (res.ok) {
+        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('drawerOverlay').style.display = 'none';
+        carregarDados();
+        showToast('❌ Consulta recusada. Paciente notificado.', 'warning');
+      } else { showToast('Erro ao recusar', 'error'); }
+    } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+  };
+
+  async function reenviarReceita(id) {
+    try {
+      const res = await fetch('/api/receita/' + id + '/enviar-whatsapp', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+      if (res.ok) showToast('✅ Receita reenviada por WhatsApp!', 'success');
+      else showToast('Erro ao reenviar', 'error');
+    } catch(e) { showToast('Erro: ' + e.message, 'error'); }
   }
 
-  async function atenderSuporte(id, telefone, nome) {
-    if (!confirm('Atender ' + nome + '?')) return;
-    try {
-      await fetch('/api/suporte/atender/' + id, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
-      await fetch('/api/enviar-whatsapp', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ telefone: telefone, mensagem: '👨‍⚕️ Doctor Prescreve\n\nOlá! Um atendente já está analisando seu caso e falará com você em breve.' }) });
-      alert('✅ Paciente notificado!');
-      carregarSuportes();
-    } catch(e) { alert('Erro: ' + e.message); }
-  }
-
-  async function carregarEstatisticasDecisoes() {
-    try {
-      var res = await fetch('/api/estatisticas/decisoes', { headers: { 'Authorization': 'Bearer ' + token } });
-      var stats = await res.json();
-      document.getElementById('statsDecisoes').innerHTML = '<div class="stat-card"><div class="stat-info"><h3>' + (stats.total_decisoes || 0) + '</h3><p>Total Decisões</p></div></div><div class="stat-card"><div class="stat-info"><h3>' + (stats.aprovados?.total || 0) + '</h3><p>Aprovados</p></div></div><div class="stat-card"><div class="stat-info"><h3>' + (stats.recusados?.total || 0) + '</h3><p>Recusados</p></div></div><div class="stat-card"><div class="stat-info"><h3>' + (stats.aprovados?.percentual || 0) + '%</h3><p>Taxa Aprovação</p></div></div>';
-      if (decisoesChart) decisoesChart.destroy();
-      var ctx = document.getElementById('decisoesChart').getContext('2d');
-      decisoesChart = new Chart(ctx, { type: 'pie', data: { labels: ['Aprovados', 'Recusados'], datasets: [{ data: [stats.aprovados?.total || 0, stats.recusados?.total || 0], backgroundColor: ['#10b981', '#ef4444'] }] } });
-    } catch(e) { console.error(e); }
-  }
-
-  async function carregarHistoricoDecisoes() {
-    try {
-      var res = await fetch('/api/decisoes/log', { headers: { 'Authorization': 'Bearer ' + token } });
-      if (!res.ok) throw new Error('Erro ao carregar histórico');
-      var logs = await res.json();
-      var html = '';
-      for (var i = 0; i < logs.length; i++) {
-        var log = logs[i];
-        html += '<div class="historico-item"><strong>' + (log.decisao || 'N/A') + '</strong> - ' + new Date(log.data).toLocaleString() + '<br><small>' + (log.observacao || 'Sem observações') + '</small><br><small>Medicação: ' + (log.medicamento || 'N/A') + ' | Posologia: ' + (log.posologia || 'N/A') + '</small><button class="btn-revisar" onclick="revisarDecisao(\'' + log.atendimento_id + '\')">🔄 Revisar</button></div>';
-      }
-      document.getElementById('historicoDecisoes').innerHTML = html || '<div class="empty-state"><i class="fas fa-inbox"></i><p>Nenhuma decisão registrada</p></div>';
-    } catch(e) { document.getElementById('historicoDecisoes').innerHTML = '<p style="color:red">Erro ao carregar histórico</p>'; }
-  }
-
-  async function revisarDecisao(id) {
-    var novaDecisao = prompt('Nova decisão (APROVAR ou RECUSAR):', 'APROVAR');
-    if (!novaDecisao) return;
-    var motivo = prompt('Motivo da revisão:', 'Reanálise do caso');
-    try {
-      var res = await fetch('/api/decisao/' + id + '/revisar', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ novaDecisao: novaDecisao, motivoRevisao: motivo }) });
-      if (res.ok) { alert('✅ Decisão revisada com sucesso!'); carregarHistoricoDecisoes(); carregarDados(); } 
-      else { var err = await res.json(); alert('Erro: ' + err.error); }
-    } catch(e) { alert('Erro: ' + e.message); }
+  function verPDFReceita(id) { window.open('/api/receita/' + id + '/pdf', '_blank'); }
+  
+  function verMotivoRecusa(id) {
+    const at = atendimentosData.find(a => a.id === id);
+    alert('Motivo da recusa:\n\n' + (at?.decisao?.observacao || 'Não informado'));
   }
 </script>
 
-<!-- Script Memed - posição correta (antes do fechamento do body) -->
-<script type="text/javascript" src="https://integrations.memed.com.br/modulos/plataforma.js"></script>
+<!-- Script Memed (sandbox - trocar para produção depois) -->
+<script type="text/javascript" src="https://sandbox.memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js"></script>
 
 </body>
 </html>

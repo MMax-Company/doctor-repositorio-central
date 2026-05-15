@@ -1797,6 +1797,78 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
 })
 
 // ========================
+// 🔐 MEMED: GERAR PRESCRIÇÃO
+// ========================
+app.post('/api/memed/prescricao', auth, async (req, res) => {
+  try {
+    const { atendimentoId, medicamento, posologia, observacao } = req.body
+    
+    if (!medicamento) {
+      return res.status(400).json({ error: 'Medicamento é obrigatório' })
+    }
+    
+    const at = await db.buscarAtendimentoPorId(atendimentoId)
+    if (!at) {
+      return res.status(404).json({ error: 'Atendimento não encontrado' })
+    }
+    
+    const dadosPaciente = {
+      paciente_nome: safeDecrypt(at.paciente_nome),
+      paciente_telefone: safeDecrypt(at.paciente_telefone),
+      paciente_cpf: safeDecrypt(at.paciente_cpf)
+    }
+    
+    const resultado = await memed.gerarPrescricaoMemed(dadosPaciente, medicamento, posologia, observacao)
+    
+    if (resultado.success) {
+      await db.atualizarStatus(atendimentoId, ESTADOS_FLUXO.RECEITA_EMITIDA, {
+        memed_prescription_id: resultado.prescriptionId,
+        memed_pdf_url: resultado.pdfUrl,
+        memed_payload: resultado.fullData
+      })
+      
+      const telefone = dadosPaciente.paciente_telefone
+      const nome = dadosPaciente.paciente_nome
+      const mensagem = `✅ *RECEITA DIGITAL* ✅\n\nOlá ${nome},\n\nSua receita foi gerada!\n\n📄 Baixe aqui: ${resultado.pdfUrl}\n\n👨‍⚕️ Doctor Prescreve`
+      await enviarWhatsAppOficial(telefone, mensagem)
+      
+      res.json({ success: true, pdfUrl: resultado.pdfUrl, prescriptionId: resultado.prescriptionId })
+    } else {
+      const pdfUrl = `${BASE_URL}/api/receita/${atendimentoId}/pdf`
+      res.json({ success: true, pdfUrl: pdfUrl, fallback: true, warning: resultado.error })
+    }
+    
+  } catch (e) {
+    console.error('❌ Erro:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ========================
+// 🔐 MEMED: STATUS
+// ========================
+app.get('/api/memed/status', auth, async (req, res) => {
+  try {
+    const status = await memed.verificarStatusConta()
+    res.json(status)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ========================
+// 🔐 MEMED: TOKEN FRONTEND
+// ========================
+app.get('/api/memed/token', auth, async (req, res) => {
+  try {
+    const token = await memed.gerarTokenFrontend()
+    res.json({ token })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ========================
 // 🚀 INICIALIZAR SERVIDOR
 // ========================
 async function startServer() {
