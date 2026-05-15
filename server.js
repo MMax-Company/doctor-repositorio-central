@@ -163,7 +163,8 @@ app.use(helmet({
         "'self'", 
         "'unsafe-inline'", 
         "https://cdnjs.cloudflare.com",
-        "https://integrations.memed.com.br"
+        "https://integrations.memed.com.br",
+        "https://cdn.jsdelivr.net"  // <-- ADICIONE ESTA LINHA
       ],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
@@ -605,6 +606,31 @@ app.get('/api/payment/:id', async (req, res) => {
   } catch (e) {
     console.error('❌ Erro ao criar sessão Stripe:', e.message)
     res.status(500).json({ error: 'Erro ao gerar pagamento: ' + e.message })
+  }
+})
+
+// ========================
+// 🚀 INICIAR ATENDIMENTO (FILA → EM_ATENDIMENTO)
+// ========================
+app.post('/api/atendimento/:id/iniciar', auth, async (req, res) => {
+  try {
+    const at = await db.buscarAtendimentoPorId(req.params.id)
+
+    if (!at) {
+      return res.status(404).json({ error: 'Atendimento não encontrado' })
+    }
+
+    if (at.status !== ESTADOS_FLUXO.FILA) {
+      return res.status(400).json({ error: `Status inválido. Esperado: FILA, atual: ${at.status}` })
+    }
+
+    await db.atualizarStatus(req.params.id, ESTADOS_FLUXO.EM_ATENDIMENTO)
+
+    res.json({ success: true, message: 'Atendimento iniciado com sucesso' })
+
+  } catch (e) {
+    console.error('❌ Erro ao iniciar atendimento:', e.message)
+    res.status(500).json({ error: e.message })
   }
 })
 
