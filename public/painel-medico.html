@@ -296,11 +296,15 @@
   }
 
   async function pegarProximo(id) {
-    if (!confirm('Iniciar atendimento deste paciente?')) return;
     try {
-      await fetch('/api/atendimento/' + id + '/iniciar', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
-      carregarDados();
-    } catch(e) { alert('Erro: ' + e.message); }
+      await fetch('/api/atendimento/' + id + '/iniciar', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      abrirProntuario(id);
+    } catch(e) { 
+      console.error('Erro:', e);
+    }
   }
 
   async function abrirProntuario(id) {
@@ -435,5 +439,9 @@
     } catch(e) { alert('Erro: ' + e.message); }
   }
 </script>
+
+<!-- Script Memed - posição correta (antes do fechamento do body) -->
+<script type="text/javascript" src="https://integrations.memed.com.br/modulos/plataforma.js"></script>
+
 </body>
 </html>

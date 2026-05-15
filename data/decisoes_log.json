@@ -1,0 +1,24 @@
+[
+  {
+    "atendimento_id": "2c082444-f418-4fdf-a576-8e72a876dc86",
+    "medico": "medico",
+    "decisao": "APROVADO",
+    "medicamento": "Losartana 50mg",
+    "posologia": "1 comprimido ao dia",
+    "observacao": "",
+    "dados_clinicos": {
+      "tipo": "HAS",
+      "risco": "baixo",
+      "doenca": "hipertensao",
+      "alergias": null,
+      "comorbidades": null,
+      "tempo_doenca": "365",
+      "posologia_atual": "1 comprimido ao dia",
+      "ultima_consulta": null,
+      "medicacao_em_uso": "Losartana 50mg",
+      "elegivel_protocolo": true,
+      "receita_vencida_dias": null
+    },
+    "created_at": "2026-05-15T13:11:31.471Z"
+  }
+]
