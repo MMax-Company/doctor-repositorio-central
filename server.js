@@ -1888,22 +1888,43 @@ app.get('/api/memed/status', auth, async (req, res) => {
   }
 })
 
-// ========================
-// 🔐 MEMED: TOKEN PARA FRONTEND
-// ========================
 app.get('/api/memed/token', auth, async (req, res) => {
-  try {
-    // Gerar token simples para o frontend
-    const simpleToken = jwt.sign(
-      { type: 'memed_frontend', exp: Math.floor(Date.now() / 1000) + (60 * 30) },
-      process.env.JWT_SECRET
-    );
-    res.json({ token: simpleToken });
-  } catch (error) {
-    console.error('❌ Erro ao gerar token:', error.message);
-    res.status(500).json({ error: error.message });
+  const result = await memed.obterTokenMemed()
+  if (result.success) {
+    res.json({ token: result.token })
+  } else {
+    res.status(500).json({ error: result.error })
   }
-});
+})
+
+// ========================
+// 📄 MEMED: SALVAR RECEITA
+// ========================
+app.post('/api/memed/receita', auth, async (req, res) => {
+  try {
+    const { atendimentoId, memedData } = req.body
+    const receita = await memed.salvarReceitaMemed(atendimentoId, memedData)
+    
+    // Atualizar status do atendimento
+    await db.atualizarStatus(atendimentoId, 'APROVADO', {
+      memed_prescription_id: receita.prescriptionId,
+      memed_pdf_url: receita.pdfUrl
+    })
+    
+    // Enviar WhatsApp
+    const at = await db.buscarAtendimentoPorId(atendimentoId)
+    const telefone = safeDecrypt(at.paciente_telefone)
+    const nome = safeDecrypt(at.paciente_nome)
+    
+    await enviarWhatsAppOficial(telefone, 
+      `✅ *RECEITA DIGITAL* ✅\n\nOlá ${nome},\n\nSua receita foi aprovada!\n\n📄 Baixe aqui: ${receita.pdfUrl}\n\n👨‍⚕️ Doctor Prescreve`
+    )
+    
+    res.json({ success: true, receita })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
 
 // ========================
 // 🚀 INICIALIZAR SERVIDOR
