@@ -1874,6 +1874,8 @@ app.post('/api/memed/prescricao', auth, async (req, res) => {
 
 }
 
+})
+
 // ========================
 // 🔐 MEMED: STATUS
 // ========================
