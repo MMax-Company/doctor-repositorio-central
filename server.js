@@ -1856,16 +1856,21 @@ app.get('/api/memed/status', auth, async (req, res) => {
 })
 
 // ========================
-// 🔐 MEMED: TOKEN FRONTEND
+// 🔐 MEMED: TOKEN PARA FRONTEND
 // ========================
 app.get('/api/memed/token', auth, async (req, res) => {
   try {
-    const token = await memed.gerarTokenFrontend()
-    res.json({ token })
+    // Gerar token simples para o frontend
+    const simpleToken = jwt.sign(
+      { type: 'memed_frontend', exp: Math.floor(Date.now() / 1000) + (60 * 30) },
+      process.env.JWT_SECRET
+    );
+    res.json({ token: simpleToken });
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    console.error('❌ Erro ao gerar token:', error.message);
+    res.status(500).json({ error: error.message });
   }
-})
+});
 
 // ========================
 // 🚀 INICIALIZAR SERVIDOR
