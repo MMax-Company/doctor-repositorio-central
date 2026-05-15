@@ -255,7 +255,7 @@ function showToast(message, type = 'success') {
     const fila = atendimentosData.filter(a => a.status === 'FILA').length;
     const emAtendimento = atendimentosData.filter(a => a.status === 'EM_ATENDIMENTO').length;
     const receitaGerada = atendimentosData.filter(a => a.status === 'APROVADO' || a.status === 'RECEITA_EMITIDA').length;
-    const receitaEnviada = atendimentosData.filter(a => a.whatsapp_enviado === true).length;
+    const receitaEnviada = atendimentosData.filter(a => a.status === 'RECEITA_EMITIDA').length; 
     document.getElementById('statFila').innerText = fila;
     document.getElementById('statAtendimento').innerText = emAtendimento;
     document.getElementById('statReceitaGerada').innerText = receitaGerada;
@@ -272,16 +272,39 @@ function showToast(message, type = 'success') {
     return 'há ' + Math.floor(horas / 24) + 'd';
   }
 
-  function getStatusBadge(status, whatsappEnviado) {
-    if (status === 'FILA') return '<span class="status-badge status-fila">EM FILA</span>';
-    if (status === 'EM_ATENDIMENTO') return '<span class="status-badge status-atendimento">EM ANÁLISE</span>';
-    if (status === 'APROVADO' || status === 'RECEITA_EMITIDA') {
-      if (whatsappEnviado) return '<span class="status-badge status-receita-enviada">RECEITA ENTREGUE</span>';
-      return '<span class="status-badge status-receita-gerada">RECEITA GERADA</span>';
-    }
-    if (status === 'RECUSADO') return '<span class="status-badge status-recusado">RECUSADO</span>';
-    return '<span class="status-badge">' + status + '</span>';
+ function getStatusBadge(status, whatsappEnviado) {
+
+  if (status === 'FILA') {
+    return '<span class="status-badge status-fila">EM FILA</span>';
   }
+
+  if (status === 'EM_ATENDIMENTO') {
+    return '<span class="status-badge status-atendimento">EM ANÁLISE</span>';
+  }
+
+  if (status === 'PRONTO_PARA_DECISAO') {
+    return '<span class="status-badge status-atendimento">AGUARDANDO DECISÃO</span>';
+  }
+
+  if (status === 'APROVADO') {
+    return '<span class="status-badge status-receita-gerada">APROVADO</span>';
+  }
+
+  if (status === 'RECEITA_EMITIDA') {
+
+    if (whatsappEnviado) {
+      return '<span class="status-badge status-receita-enviada">RECEITA ENTREGUE</span>';
+    }
+
+    return '<span class="status-badge status-receita-gerada">RECEITA EMITIDA</span>';
+  }
+
+  if (status === 'RECUSADO') {
+    return '<span class="status-badge status-recusado">RECUSADO</span>';
+  }
+
+  return '<span class="status-badge">' + status + '</span>';
+}
 
   function gerarQueixa(tipo) {
     const base = { HAS: "Paciente em acompanhamento por hipertensão arterial sistêmica, solicita renovação de receita.", DIABETES: "Paciente em acompanhamento por diabetes mellitus tipo 2, solicita continuidade do tratamento.", HIPOTIREOIDISMO: "Paciente com hipotireoidismo em tratamento, solicita renovação de medicação.", DISLIPIDEMIA: "Paciente com dislipidemia em tratamento, solicita renovação de medicação.", SAUDE_MENTAL: "Paciente em acompanhamento por transtorno de ansiedade/depressão, solicita renovação.", OUTRO: "Paciente em acompanhamento clínico, solicita renovação de medicação de uso contínuo." };
@@ -451,16 +474,59 @@ function showToast(message, type = 'success') {
     } catch(e) { showToast('Erro: ' + e.message, 'error'); }
   }
 
-  function verPDFReceita(id) { window.open('/api/receita/' + id + '/pdf', '_blank'); }
-  
-  function verMotivoRecusa(id) {
-    const at = atendimentosData.find(a => a.id === id);
-    alert('Motivo da recusa:\n\n' + (at?.decisao?.observacao || 'Não informado'));
-  }
+  function verPDFReceita(id) {
+  window.open('/api/receita/' + id + '/pdf', '_blank');
+}
+
+function verMotivoRecusa(id) {
+  const at = atendimentosData.find(a => a.id === id);
+
+  alert(
+    'Motivo da recusa:\n\n' +
+    (at?.decisao?.observacao || 'Não informado')
+  );
+}
 </script>
 
-<!-- Script Memed (sandbox - trocar para produção depois) -->
-<script type="text/javascript" src="https://sandbox.memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js"></script>
+<script>
+async function inicializarMemed() {
 
-</body>
-</html>
+  try {
+
+    const response = await fetch('/api/memed/token', {
+      headers: {
+        Authorization: 'Bearer ' + token
+      }
+    });
+
+    const data = await response.json();
+
+    const script = document.createElement('script');
+
+    script.src =
+      'https://sandbox.memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js';
+
+    script.setAttribute('data-token', data.token);
+
+    script.onload = async () => {
+
+      await MdHub.module.waitForReady();
+
+      console.log('✅ Memed pronta');
+
+    };
+
+    document.body.appendChild(script);
+
+  } catch (e) {
+
+    console.error(e);
+
+  }
+
+}
+
+if (token) {
+  inicializarMemed();
+}
+</script>
