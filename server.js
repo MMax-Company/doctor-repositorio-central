@@ -1862,11 +1862,17 @@ app.post('/api/memed/prescricao', auth, async (req, res) => {
       res.json({ success: true, pdfUrl: pdfUrl, fallback: true, warning: resultado.error })
     }
     
-  } catch (e) {
-    console.error('❌ Erro:', e.message)
-    res.status(500).json({ error: e.message })
-  }
-})
+} catch (e) {
+
+  console.error('❌ MEMED PRESCRICAO ERROR:')
+  console.error(e.response?.data || e)
+
+  res.status(500).json({
+    error: e.message,
+    detalhes: e.response?.data || null
+  })
+
+}
 
 // ========================
 // 🔐 MEMED: STATUS
