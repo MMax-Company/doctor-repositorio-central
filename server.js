@@ -165,18 +165,23 @@ app.use(helmet({
         "'unsafe-inline'",
         "'unsafe-eval'",
         "blob:",
-        "https://cdn.jsdelivr.net",
         "https://sandbox.memed.com.br",
         "https://cdn.memed.com.br",
-        "https://integrations.memed.com.br",
-        "https://cdn.rudderlabs.com",
-        "https://www.googletagmanager.com",
-        "https://www.google-analytics.com"
+        "https://integrations.memed.com.br"
       ],
 
       styleSrc: [
         "'self'",
-        "'unsafe-inline'"
+        "'unsafe-inline'",
+        "https://fonts.googleapis.com",
+        "https://cdnjs.cloudflare.com"
+      ],
+
+      fontSrc: [
+        "'self'",
+        "https://fonts.gstatic.com",
+        "https://cdnjs.cloudflare.com",
+        "data:"
       ],
 
       imgSrc: [
@@ -188,9 +193,7 @@ app.use(helmet({
       connectSrc: [
         "'self'",
         "https://sandbox.memed.com.br",
-        "https://integrations.memed.com.br",
-        "https://cdn.rudderlabs.com",
-        "https://www.google-analytics.com"
+        "https://integrations.memed.com.br"
       ],
 
       frameSrc: [
