@@ -498,31 +498,24 @@ async function inicializarMemed() {
         Authorization: 'Bearer ' + token
       }
     });
+const data = await response.json();
 
-    const data = await response.json();
+const script = document.createElement('script');
+script.src = 'https://cdn.memed.com.br/widget/mdhub.js';  // URL como string
+script.setAttribute('data-token', data.token);
 
-    const script = document.createElement('script');
-
-    script.src =
-    <script src="https://cdn.memed.com.br/widget/mdhub.js"></script>
-    script.setAttribute('data-token', data.token);
-
-    script.onload = async () => {
-
-      await MdHub.module.waitForReady();
-
-      console.log('✅ Memed pronta');
-
-    };
-
-    document.body.appendChild(script);
-
-  } catch (e) {
-
-    console.error(e);
-
+script.onload = async () => {
+  if (typeof MdHub !== 'undefined') {
+    await MdHub.module.waitForReady();
+    console.log('✅ Memed pronta');
   }
+};
 
+document.body.appendChild(script);
+
+} catch (e) {
+  console.error(e);
+}
 }
 
 if (token) {
