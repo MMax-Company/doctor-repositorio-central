@@ -425,11 +425,9 @@ function normalizarDoencas(doencas) {
   return String(doencas || '').toLowerCase()
 }
 
-// ========================
-// 🏥 HEALTH CHECK
-// ========================
 app.get('/healthz', async (req, res) => {
   try {
+    // Verificar conexão com banco
     const dbOk = await db.healthCheck()
     res.json({
       status: 'online',
