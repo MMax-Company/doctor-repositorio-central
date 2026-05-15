@@ -1364,13 +1364,13 @@ app.get('/api/memed/status', auth, async (req, res) => {
 })
 
 // ========================
-// 📄 MEMED: PRESCRIÇÃO (FALLBACK)
+// 📄 MEMED: PRESCRIÇÃO
 // ========================
-app.post('/api/memed/prescricao', auth, async (req, res) => {
-  try {
+   app.post('/api/memed/prescricao', auth, async (req, res) => {
+    try {
     const { atendimentoId, medicamento, posologia, observacao } = req.body;
     
-    console.log(`📝 Gerando receita para atendimento ${atendimentoId}`);
+    console.log(`📝 Gerando receita para ${atendimentoId}`);
     
     // Buscar atendimento
     const at = await db.buscarAtendimentoPorId(atendimentoId);
@@ -1378,7 +1378,7 @@ app.post('/api/memed/prescricao', auth, async (req, res) => {
       return res.status(404).json({ error: 'Atendimento não encontrado' });
     }
     
-    // Atualizar status para APROVADO
+    // Atualizar status
     await db.atualizarStatus(atendimentoId, 'APROVADO', {
       medicamento_prescrito: medicamento,
       posologia: posologia,
@@ -1386,26 +1386,22 @@ app.post('/api/memed/prescricao', auth, async (req, res) => {
       data_decisao: new Date().toISOString()
     });
     
-    // Gerar URL do PDF
+    // URL do PDF
     const pdfUrl = `${BASE_URL}/api/receita/${atendimentoId}/pdf`;
     
-    // Enviar WhatsApp
+    // WhatsApp
     const telefone = safeDecrypt(at.paciente_telefone);
     const nome = safeDecrypt(at.paciente_nome);
     
     if (telefone) {
-      const mensagem = `✅ *RECEITA APROVADA* ✅\n\nOlá ${nome},\n\nSua receita foi aprovada!\n\n📄 Baixe aqui: ${pdfUrl}\n\n💊 Medicamento: ${medicamento}\n📝 Posologia: ${posologia}\n\n👨‍⚕️ Doctor Prescreve`;
-      await enviarWhatsAppOficial(telefone, mensagem);
+      const msg = `✅ RECEITA APROVADA ✅\n\nOlá ${nome},\n\nSua receita foi aprovada!\n\n📄 Baixe: ${pdfUrl}\n\n💊 ${medicamento}\n📝 ${posologia}\n\nDoctor Prescreve`;
+      await enviarWhatsAppOficial(telefone, msg);
     }
     
-    res.json({ 
-      success: true, 
-      pdfUrl: pdfUrl,
-      mensagem: 'Receita gerada com sucesso'
-    });
+    res.json({ success: true, pdfUrl: pdfUrl });
     
   } catch (error) {
-    console.error('❌ Erro ao gerar receita:', error);
+    console.error('❌ Erro:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1413,8 +1409,8 @@ app.post('/api/memed/prescricao', auth, async (req, res) => {
 // ========================
 // 📄 RECEITA MÉDICA
 // ========================
-app.post('/api/receita', auth, async (req, res) => {
-  try {
+   app.post('/api/receita', auth, async (req, res) => {
+     try {
     const receita = req.body
     const id = receita.atendimentoId || receita.id || uuidv4()
 
@@ -1875,7 +1871,7 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
 // ========================
    app.get('/api/memed/token', auth, async (req, res) => {
     try {
-     const token = crypto.randomBytes(32).toString('hex');
+    const token = crypto.randomBytes(32).toString('hex');
      res.json({ token: token });
     } catch (error) {
      res.status(500).json({ error: error.message });
