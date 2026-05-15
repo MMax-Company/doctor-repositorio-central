@@ -159,26 +159,46 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
+
       scriptSrc: [
-        "'self'", 
-        "'unsafe-inline'", 
+        "'self'",
+        "'unsafe-inline'",
         "'unsafe-eval'",
-        "https://cdnjs.cloudflare.com",
-        "https://integrations.memed.com.br",
+        "blob:",
         "https://cdn.jsdelivr.net",
         "https://sandbox.memed.com.br",
         "https://cdn.memed.com.br",
+        "https://integrations.memed.com.br",
+        "https://cdn.rudderlabs.com",
         "https://www.googletagmanager.com",
         "https://www.google-analytics.com"
       ],
-      scriptSrcAttr: ["'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com", "https://cdn.memed.com.br"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "https://cdn.memed.com.br"],
-      imgSrc: ["'self'", "data:", "https://*", "https://cdn.memed.com.br"],
-      connectSrc: ["'self'", "https://*", "https://sandbox.memed.com.br", "https://cdn.memed.com.br"],
-      workerSrc: ["'self'", "blob:"],
-    },
-  },
+
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'"
+      ],
+
+      imgSrc: [
+        "'self'",
+        "data:",
+        "https:"
+      ],
+
+      connectSrc: [
+        "'self'",
+        "https://sandbox.memed.com.br",
+        "https://integrations.memed.com.br",
+        "https://cdn.rudderlabs.com",
+        "https://www.google-analytics.com"
+      ],
+
+      frameSrc: [
+        "'self'",
+        "https://sandbox.memed.com.br"
+      ]
+    }
+  }
 }))
 
 // ========================
