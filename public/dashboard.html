@@ -1,8 +1,9 @@
 // ========================
-// 🏥 PAINEL MÉDICO (COMPLETO)
+// 🏥 PAINEL MÉDICO (COMPLETO - CORRIGIDO)
 // ========================
 app.get('/painel-medico', (req, res) => {
-  res.send(`<!DOCTYPE html>
+  res.send(`
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -77,17 +78,17 @@ app.get('/painel-medico', (req, res) => {
     <form id="loginForm">
       <div class="input-group">
         <label>Senha de Acesso</label>
-        <input type="password" id="senha" placeholder="••••••••" required>
+        <input type="password" id="senha" placeholder="******" required>
       </div>
       <button type="submit" class="login-btn">Entrar no Painel</button>
     </form>
-    <div id="erroMsg" style="color: #ef4444; text-align: center; margin-top: 16px; display: none;">❌ Senha incorreta!</div>
+    <div id="erroMsg" style="color: #ef4444; text-align: center; margin-top: 16px; display: none;">Senha incorreta!</div>
   </div>
 </div>
 
 <div id="dashboard" class="dashboard-container">
   <div class="top-bar">
-    <div><h1 style="font-size: 20px;">🩺 Painel Médico</h1><p style="font-size: 13px;">Gerencie sua fila de renovações</p></div>
+    <div><h1 style="font-size: 20px;">Painel Medico</h1><p style="font-size: 13px;">Gerencie sua fila de renovacoes</p></div>
     <button id="logoutBtn" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Sair</button>
   </div>
 
@@ -100,27 +101,27 @@ app.get('/painel-medico', (req, res) => {
   <div class="columns-container">
     <div class="column"><div class="column-header"><h3><i class="fas fa-hourglass-half"></i> Fila de Espera</h3><span class="badge-count" id="countFila">0</span></div><div id="filaColuna"></div></div>
     <div class="column"><div class="column-header"><h3><i class="fas fa-user-md"></i> Em Atendimento</h3><span class="badge-count" id="countAtendimento">0</span></div><div id="atendimentoColuna"></div></div>
-    <div class="column"><div class="column-header"><h3><i class="fas fa-clipboard-check"></i> Pronto para Decisão</h3><span class="badge-count" id="countDecisao">0</span></div><div id="decisaoColuna"></div></div>
+    <div class="column"><div class="column-header"><h3><i class="fas fa-clipboard-check"></i> Pronto para Decisao</h3><span class="badge-count" id="countDecisao">0</span></div><div id="decisaoColuna"></div></div>
   </div>
 </div>
 
 <div id="modalProntuario" class="modal-overlay">
   <div class="modal-content">
-    <div class="modal-header"><h3>📋 Prontuário Eletrônico</h3><button class="close-modal" onclick="fecharModal()"><i class="fas fa-times"></i></button></div>
+    <div class="modal-header"><h3>Prontuario Eletronico</h3><button class="close-modal" onclick="fecharModal()"><i class="fas fa-times"></i></button></div>
     <div class="modal-body">
       <input type="hidden" id="modalAtendimentoId">
       <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 20px;">
         <h4>Dados do Paciente</h4>
         <p><strong>Nome:</strong> <span id="modalPacienteNome"></span></p>
         <p><strong>Telefone:</strong> <span id="modalPacienteTel"></span></p>
-        <p><strong>Condição:</strong> <span id="modalDoenca"></span></p>
-        <p><strong>Medicação Atual:</strong> <span id="modalMedicacao"></span></p>
+        <p><strong>Condicao:</strong> <span id="modalDoenca"></span></p>
+        <p><strong>Medicacao Atual:</strong> <span id="modalMedicacao"></span></p>
       </div>
       <div class="form-group"><label>Queixa Principal</label><textarea id="modalQueixa" readonly style="background: #f1f5f9;"></textarea></div>
-      <div class="form-group"><label>História da Doença</label><textarea id="modalHistoria" readonly style="background: #f1f5f9;"></textarea></div>
-      <div class="form-group"><label>Exame Físico (Relato)</label><textarea id="modalExame" readonly style="background: #f1f5f9;"></textarea></div>
-      <div class="form-group"><label>Conduta / Plano Terapêutico</label><textarea id="modalConduta" readonly style="background: #f1f5f9;"></textarea></div>
-      <div class="actions"><button class="btn btn-danger" onclick="recusarConsulta()">❌ Recusar</button><button class="btn btn-success" onclick="aprovarConsulta()">✅ Aprovar</button></div>
+      <div class="form-group"><label>Historia da Doenca</label><textarea id="modalHistoria" readonly style="background: #f1f5f9;"></textarea></div>
+      <div class="form-group"><label>Exame Fisico (Relato)</label><textarea id="modalExame" readonly style="background: #f1f5f9;"></textarea></div>
+      <div class="form-group"><label>Conduta / Plano Terapeutico</label><textarea id="modalConduta" readonly style="background: #f1f5f9;"></textarea></div>
+      <div class="actions"><button class="btn btn-danger" onclick="recusarConsulta()">Recusar</button><button class="btn btn-success" onclick="aprovarConsulta()">Aprovar</button></div>
     </div>
   </div>
 </div>
@@ -130,46 +131,80 @@ app.get('/painel-medico', (req, res) => {
   let atendimentosData = [];
   let atendimentoAtual = null;
 
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('loginForm').addEventListener('submit', (e) => { e.preventDefault(); fazerLogin(); });
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      fazerLogin();
+    });
     document.getElementById('logoutBtn').addEventListener('click', logout);
-    if (token) { mostrarDashboard(); carregarDados(); setInterval(carregarDados, 30000); }
+    if (token) {
+      mostrarDashboard();
+      carregarDados();
+      setInterval(carregarDados, 30000);
+    }
   });
 
   async function fazerLogin() {
     const senha = document.getElementById('senha').value;
     try {
-      const res = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha }) });
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senha: senha })
+      });
       const data = await res.json();
-      if (data.token) { token = data.token; localStorage.setItem('token', token); mostrarDashboard(); carregarDados(); } 
-      else { document.getElementById('erroMsg').style.display = 'block'; }
-    } catch(e) { document.getElementById('erroMsg').style.display = 'block'; }
+      if (data.token) {
+        token = data.token;
+        localStorage.setItem('token', token);
+        mostrarDashboard();
+        carregarDados();
+      } else {
+        document.getElementById('erroMsg').style.display = 'block';
+      }
+    } catch(e) {
+      document.getElementById('erroMsg').style.display = 'block';
+    }
   }
 
-  function logout() { localStorage.removeItem('token'); token = null; location.reload(); }
-  function mostrarDashboard() { document.getElementById('loginScreen').style.display = 'none'; document.getElementById('dashboard').style.display = 'block'; }
+  function logout() {
+    localStorage.removeItem('token');
+    token = null;
+    location.reload();
+  }
+
+  function mostrarDashboard() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+  }
 
   async function carregarDados() {
     if (!token) return;
     try {
-      const res = await fetch('/api/atendimentos', { headers: { 'Authorization': 'Bearer ' + token } });
-      if (!res.ok) { if (res.status === 401) logout(); return; }
+      const res = await fetch('/api/atendimentos', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) {
+        if (res.status === 401) logout();
+        return;
+      }
       atendimentosData = await res.json();
       renderizarColunas();
       atualizarStats();
-    } catch(e) { console.error(e); }
+    } catch(e) {
+      console.error('Erro ao carregar:', e);
+    }
   }
 
   function atualizarStats() {
     document.getElementById('statTotal').innerText = atendimentosData.length;
-    document.getElementById('statFila').innerText = atendimentosData.filter(a => a.status === 'FILA').length;
-    document.getElementById('statAprovados').innerText = atendimentosData.filter(a => a.status === 'APROVADO' || a.status === 'RECEITA_EMITIDA').length;
+    document.getElementById('statFila').innerText = atendimentosData.filter(function(a) { return a.status === 'FILA'; }).length;
+    document.getElementById('statAprovados').innerText = atendimentosData.filter(function(a) { return a.status === 'APROVADO' || a.status === 'RECEITA_EMITIDA'; }).length;
   }
 
   function renderizarColunas() {
-    const fila = atendimentosData.filter(a => a.status === 'FILA');
-    const emAtendimento = atendimentosData.filter(a => a.status === 'EM_ATENDIMENTO');
-    const prontoDecisao = atendimentosData.filter(a => a.status === 'PRONTO_PARA_DECISAO');
+    var fila = atendimentosData.filter(function(a) { return a.status === 'FILA'; });
+    var emAtendimento = atendimentosData.filter(function(a) { return a.status === 'EM_ATENDIMENTO'; });
+    var prontoDecisao = atendimentosData.filter(function(a) { return a.status === 'PRONTO_PARA_DECISAO'; });
     document.getElementById('countFila').innerText = fila.length;
     document.getElementById('countAtendimento').innerText = emAtendimento.length;
     document.getElementById('countDecisao').innerText = prontoDecisao.length;
@@ -178,97 +213,146 @@ app.get('/painel-medico', (req, res) => {
     renderizarColuna('decisaoColuna', prontoDecisao, 'decisao');
   }
 
-  function renderizarColuna(elementId, lista, tipo) {
-    const container = document.getElementById(elementId);
-    if (!lista || lista.length === 0) { container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Vazio</p></div>'; return; }
-    container.innerHTML = lista.map(a => \`
-      <div class="patient-card">
-        <div class="card-header">
-          <div><div class="patient-name">\${a.paciente_nome || 'Paciente'}</div><div class="patient-id">ID: \${a.id.substring(0, 8)}</div></div>
-          <span class="status-badge status-\${tipo}">\${tipo === 'fila' ? '⏳ Fila' : tipo === 'atendimento' ? '👨‍⚕️ Atendimento' : '📝 Decisão'}</span>
-        </div>
-        <div class="info-row"><i class="fas fa-notes-medical"></i> \${a.doencas || 'N/A'}</div>
-        <div class="info-row"><i class="fas fa-pills"></i> \${a.medicacao_em_uso ? a.medicacao_em_uso.substring(0, 30) + '...' : 'N/A'}</div>
-        <div class="info-row"><i class="fas fa-clock"></i> \${formatarTempo(a.criado_em)}</div>
-        <div class="actions">
-          \${tipo === 'fila' ? \`<button class="btn btn-warning" onclick="pegarProximo('\${a.id}')">👨‍⚕️ Pegar</button>\` : ''}
-          \${tipo === 'atendimento' ? \`<button class="btn btn-primary" onclick="abrirProntuario('\${a.id}')">📋 Prontuário</button>\` : ''}
-          \${tipo === 'decisao' ? \`<button class="btn btn-success" onclick="decidir('\${a.id}', 'APROVADO')">✅ Aprovar</button><button class="btn btn-danger" onclick="decidir('\${a.id}', 'RECUSADO')">❌ Recusar</button>\` : ''}
-        </div>
-      </div>
-    \`).join('');
-  }
-
   function formatarTempo(data) {
     if (!data) return 'agora';
-    const diff = Math.floor((new Date() - new Date(data)) / 60000);
+    var diff = Math.floor((new Date() - new Date(data)) / 60000);
     if (diff < 1) return 'agora';
     if (diff < 60) return diff + ' min';
     return Math.floor(diff / 60) + 'h';
   }
 
+  function renderizarColuna(elementId, lista, tipo) {
+    var container = document.getElementById(elementId);
+    if (!lista || lista.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Vazio</p></div>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < lista.length; i++) {
+      var a = lista[i];
+      var statusText = '';
+      if (tipo === 'fila') statusText = 'Fila';
+      else if (tipo === 'atendimento') statusText = 'Atendimento';
+      else statusText = 'Decisao';
+      html += '<div class="patient-card">';
+      html += '<div class="card-header">';
+      html += '<div><div class="patient-name">' + (a.paciente_nome || 'Paciente') + '</div>';
+      html += '<div class="patient-id">ID: ' + (a.id ? a.id.substring(0, 8) : '') + '</div></div>';
+      html += '<span class="status-badge status-' + tipo + '">' + statusText + '</span>';
+      html += '</div>';
+      html += '<div class="info-row"><i class="fas fa-notes-medical"></i> ' + (a.doencas || 'N/A') + '</div>';
+      html += '<div class="info-row"><i class="fas fa-pills"></i> ' + (a.medicacao_em_uso ? a.medicacao_em_uso.substring(0, 30) + '...' : 'N/A') + '</div>';
+      html += '<div class="info-row"><i class="fas fa-clock"></i> ' + formatarTempo(a.criado_em) + '</div>';
+      html += '<div class="actions">';
+      if (tipo === 'fila') {
+        html += '<button class="btn btn-warning" onclick="pegarProximo(\'' + a.id + '\')">Pegar</button>';
+      }
+      if (tipo === 'atendimento') {
+        html += '<button class="btn btn-primary" onclick="abrirProntuario(\'' + a.id + '\')">Prontuario</button>';
+      }
+      if (tipo === 'decisao') {
+        html += '<button class="btn btn-success" onclick="decidir(\'' + a.id + '\', \'APROVADO\')">Aprovar</button>';
+        html += '<button class="btn btn-danger" onclick="decidir(\'' + a.id + '\', \'RECUSADO\')">Recusar</button>';
+      }
+      html += '</div></div>';
+    }
+    container.innerHTML = html;
+  }
+
   function gerarQueixa(tipo) {
-    const base = { HAS: "Paciente em acompanhamento por hipertensão arterial sistêmica, solicita renovação de receita.", DIABETES: "Paciente em acompanhamento por diabetes mellitus tipo 2, solicita continuidade do tratamento.", HIPOTIREOIDISMO: "Paciente com hipotireoidismo em tratamento, solicita renovação de medicação.", DISLIPIDEMIA: "Paciente com dislipidemia em tratamento, solicita renovação de medicação.", SAUDE_MENTAL: "Paciente em acompanhamento por transtorno de ansiedade/depressão, solicita renovação.", OUTRO: "Paciente em acompanhamento clínico, solicita renovação de medicação de uso contínuo." };
-    return base[tipo] || base.OUTRO;
+    if (tipo === 'HAS') return "Paciente em acompanhamento por hipertensao arterial sistemica, solicita renovacao de receita.";
+    if (tipo === 'DIABETES') return "Paciente em acompanhamento por diabetes mellitus tipo 2, solicita continuidade do tratamento.";
+    if (tipo === 'HIPOTIREOIDISMO') return "Paciente com hipotireoidismo em tratamento, solicita renovacao de medicacao.";
+    return "Paciente em acompanhamento clinico, solicita renovacao de medicacao de uso continuo.";
   }
 
   function gerarHistoria(tipo) {
-    const historias = { HAS: "Paciente refere estabilidade do quadro pressórico. Nega cefaleia, tontura ou palpitações.", DIABETES: "Paciente nega poliúria, polidipsia ou polifagia. Refere seguimento com nutricionista.", HIPOTIREOIDISMO: "Paciente nega ganho ponderal excessivo, astenia ou intolerância ao frio.", DISLIPIDEMIA: "Paciente relata dieta hipolipídica. Nega eventos cardiovasculares prévios.", SAUDE_MENTAL: "Paciente relata melhora do humor e ansiedade com medicação atual.", OUTRO: "Paciente refere-se assintomático ao momento. Sem intercorrências." };
-    return historias[tipo] || historias.OUTRO;
+    if (tipo === 'HAS') return "Paciente refere estabilidade do quadro pressorico. Nega cefaleia, tontura ou palpitacoes.";
+    if (tipo === 'DIABETES') return "Paciente nega poliuria, polidipsia ou polifagia. Refere seguimento com nutricionista.";
+    return "Paciente refere-se assintomatico ao momento. Sem intercorrencias.";
   }
 
   function gerarExameFisico(tipo) {
-    const exames = { HAS: "PA: informada pelo paciente como controlada. FC: dentro da normalidade.", DIABETES: "Paciente eutrófico. Sem lesões de pele. Extremidades preservadas.", HIPOTIREOIDISMO: "Tireoide palpável sem nódulos. Sem bócio.", OUTRO: "Consulta remota - exame físico limitado. Sem queixas ativas." };
-    return exames[tipo] || exames.OUTRO;
+    if (tipo === 'HAS') return "PA: informada pelo paciente como controlada. FC: dentro da normalidade.";
+    if (tipo === 'DIABETES') return "Paciente eutrofico. Sem lesoes de pele. Extremidades preservadas.";
+    return "Consulta remota - exame fisico limitado. Sem queixas ativas.";
   }
 
   function gerarConduta(tipo) {
-    const condutas = { HAS: "Manter tratamento atual com anti-hipertensivo. Orientado acompanhamento regular.", DIABETES: "Manter hipoglicemiante oral. Reforçar orientação sobre dieta e atividade física.", HIPOTIREOIDISMO: "Manter levotiroxina na dose atual. Solicitar TSH para controle.", DISLIPIDEMIA: "Manter estatina. Reforçar orientação dietética.", SAUDE_MENTAL: "Manter medicação atual. Orientado psicoterapia de suporte.", OUTRO: "Manter tratamento habitual. Orientado retorno em 3 meses." };
-    return condutas[tipo] || condutas.OUTRO;
+    if (tipo === 'HAS') return "Manter tratamento atual com anti-hipertensivo. Orientado acompanhamento regular.";
+    if (tipo === 'DIABETES') return "Manter hipoglicemiante oral. Reforcar orientacao sobre dieta e atividade fisica.";
+    return "Manter tratamento habitual. Orientado retorno em 3 meses.";
   }
 
   async function pegarProximo(id) {
     if (!confirm('Iniciar atendimento deste paciente?')) return;
     try {
-      await fetch(\`/api/atendimento/\${id}/iniciar\`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+      await fetch('/api/atendimento/' + id + '/iniciar', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
       carregarDados();
     } catch(e) { alert('Erro: ' + e.message); }
   }
 
   async function abrirProntuario(id) {
     try {
-      const res = await fetch(\`/api/atendimento/\${id}\`, { headers: { 'Authorization': 'Bearer ' + token } });
-      const data = await res.json();
+      var res = await fetch('/api/atendimento/' + id, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      var data = await res.json();
       atendimentoAtual = data;
       document.getElementById('modalAtendimentoId').value = id;
       document.getElementById('modalPacienteNome').innerText = data.paciente_nome;
       document.getElementById('modalPacienteTel').innerText = data.paciente_telefone;
       document.getElementById('modalDoenca').innerText = data.doencas;
       document.getElementById('modalMedicacao').innerText = data.medicacao_em_uso;
-      const tipo = data.tipo || 'OUTRO';
+      var tipo = data.tipo || 'OUTRO';
       document.getElementById('modalQueixa').value = gerarQueixa(tipo);
       document.getElementById('modalHistoria').value = gerarHistoria(tipo);
       document.getElementById('modalExame').value = gerarExameFisico(tipo);
       document.getElementById('modalConduta').value = gerarConduta(tipo);
       document.getElementById('modalProntuario').style.display = 'flex';
-    } catch(e) { alert('Erro ao carregar prontuário'); }
+    } catch(e) { alert('Erro ao carregar prontuario'); }
   }
 
-  function fecharModal() { document.getElementById('modalProntuario').style.display = 'none'; atendimentoAtual = null; }
+  function fecharModal() {
+    document.getElementById('modalProntuario').style.display = 'none';
+    atendimentoAtual = null;
+  }
 
   async function decidir(id, decisao) {
-    if (!confirm(\`Tem certeza que deseja \${decisao === 'APROVADO' ? 'APROVAR' : 'RECUSAR'} este atendimento?\`)) return;
+    if (!confirm('Tem certeza que deseja ' + (decisao === 'APROVADO' ? 'APROVAR' : 'RECUSAR') + ' este atendimento?')) return;
     try {
-      const res = await fetch(\`/api/decisao/\${id}\`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ decisao, prontuario: { queixa: document.getElementById('modalQueixa').value, historia: document.getElementById('modalHistoria').value, exame: document.getElementById('modalExame').value, conduta: document.getElementById('modalConduta').value } }) });
-      if (!res.ok) throw new Error('Erro ao registrar decisão');
-      fecharModal(); carregarDados();
-      alert(decisao === 'APROVADO' ? '✅ Atendimento aprovado! Receita será gerada.' : '❌ Atendimento recusado.');
-    } catch(e) { alert('Erro: ' + e.message); }
+      var res = await fetch('/api/decisao/' + id, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          decisao: decisao,
+          prontuario: {
+            queixa: document.getElementById('modalQueixa').value,
+            historia: document.getElementById('modalHistoria').value,
+            exame: document.getElementById('modalExame').value,
+            conduta: document.getElementById('modalConduta').value
+          }
+        })
+      });
+      if (!res.ok) throw new Error('Erro ao registrar decisao');
+      fecharModal();
+      carregarDados();
+      alert(decisao === 'APROVADO' ? 'Atendimento aprovado! Receita sera gerada.' : 'Atendimento recusado.');
+    } catch(e) {
+      alert('Erro: ' + e.message);
+    }
   }
 
-  window.aprovarConsulta = () => decidir(document.getElementById('modalAtendimentoId').value, 'APROVADO');
-  window.recusarConsulta = () => decidir(document.getElementById('modalAtendimentoId').value, 'RECUSADO');
+  window.aprovarConsulta = function() { decidir(document.getElementById('modalAtendimentoId').value, 'APROVADO'); };
+  window.recusarConsulta = function() { decidir(document.getElementById('modalAtendimentoId').value, 'RECUSADO'); };
 </script>
 </body>
-</html>\`);
+</html>
+  `);
 });
