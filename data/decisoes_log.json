@@ -42,5 +42,27 @@
       "receita_vencida_dias": null
     },
     "created_at": "2026-05-15T14:01:52.436Z"
+  },
+  {
+    "atendimento_id": "1b1071d2-8bae-4a22-9a97-70940fcf0e5c",
+    "medico": "medico",
+    "decisao": "RECUSADO",
+    "medicamento": "Losartana 50mg",
+    "posologia": "1 comprimido ao dia",
+    "observacao": "Não elegível para renovação remota",
+    "dados_clinicos": {
+      "tipo": "HAS",
+      "risco": "baixo",
+      "doenca": "hipertensao",
+      "alergias": null,
+      "comorbidades": null,
+      "tempo_doenca": "365",
+      "posologia_atual": "1 comprimido ao dia",
+      "ultima_consulta": null,
+      "medicacao_em_uso": "Losartana 50mg",
+      "elegivel_protocolo": true,
+      "receita_vencida_dias": null
+    },
+    "created_at": "2026-05-15T16:16:37.911Z"
   }
 ]

@@ -16,6 +16,7 @@
     "express": "^4.18.2",
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.0",
+    "memed-react": "^2.0.5",
     "pdfkit": "^0.14.0",
     "pg": "^8.11.0",
     "qrcode": "^1.5.0",

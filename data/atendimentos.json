@@ -23,9 +23,17 @@
     },
     "elegivel": true,
     "motivo": "Condição elegível para renovação remota",
-    "status": "AGUARDANDO_PAGAMENTO",
+    "status": "RECUSADO",
     "pagamento": false,
     "criadoEm": "2026-05-15T12:24:35.220Z",
-    "created_at": "2026-05-15T12:24:35.220Z"
+    "created_at": "2026-05-15T12:24:35.220Z",
+    "updated_at": "2026-05-15T16:16:37.905Z",
+    "data": "2026-05-15T16:16:37.843Z",
+    "medico": "medico",
+    "observacao": "Não elegível para renovação remota",
+    "medicamento_prescrito": "Losartana 50mg",
+    "posologia": "1 comprimido ao dia",
+    "receita_memed_id": null,
+    "memed_payload": null
   }
 ]
