@@ -196,6 +196,8 @@ app.use(helmet({
         "https://integrations.memed.com.br"
       ],
 
+      scriptSrcAttr: ["'unsafe-inline'"],
+
       frameSrc: [
         "'self'",
         "https://sandbox.memed.com.br"
