@@ -164,17 +164,14 @@ app.use(helmet({
         "'unsafe-inline'", 
         "https://cdnjs.cloudflare.com",
         "https://integrations.memed.com.br",
-        "https://cdn.jsdelivr.net"  // <-- ADICIONE ESTA LINHA
+        "https://cdn.jsdelivr.net",
+        "https://sandbox.memed.com.br"  // <-- ADICIONE ESTA LINHA
       ],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       imgSrc: ["'self'", "data:", "https://*"],
-      connectSrc: [
-        "'self'", 
-        "https://*",
-        "https://integrations.memed.com.br"
-      ],
+      connectSrc: ["'self'", "https://*", "https://sandbox.memed.com.br"],
       workerSrc: ["'self'", "blob:"],
     },
   },
