@@ -1382,6 +1382,11 @@ app.get('/api/memed/status', auth, async (req, res) => {
     };
     
     const resultado = await memed.gerarPrescricaoMemed(dadosPaciente, medicamento, posologia, observacao);
+     console.log('MEMED OBJ:', memed)
+     console.log(
+    'FUNÇÃO:',
+      typeof memed.gerarPrescricaoMemed
+    )
     
     if (resultado.success) {
       await db.atualizarStatus(atendimentoId, ESTADOS_FLUXO.RECEITA_EMITIDA, {
@@ -1869,59 +1874,70 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
 })
 
 // ========================
-// 🔐 MEMED: TOKEN (FALLBACK)
+// 🔐 MEMED: TOKEN
 // ========================
-   app.get('/api/memed/token', auth, async (req, res) => {
-    try {
-    const token = crypto.randomBytes(32).toString('hex');
-     res.json({ token: token });
-    } catch (error) {
-     res.status(500).json({ error: error.message });
-    }
-  });
+app.get('/api/memed/token', auth, async (req, res) => {
+  try {
 
-    const at = await db.buscarAtendimentoPorId(atendimentoId)
-    if (!at) {
-      return res.status(404).json({ error: 'Atendimento não encontrado' })
-    }
-    
-    const dadosPaciente = {
-      paciente_nome: safeDecrypt(at.paciente_nome),
-      paciente_telefone: safeDecrypt(at.paciente_telefone),
-      paciente_cpf: safeDecrypt(at.paciente_cpf)
-    }
-    
-    const resultado = await memed.gerarPrescricaoMemed(dadosPaciente, medicamento, posologia, observacao)
-    
-    if (resultado.success) {
-      await db.atualizarStatus(atendimentoId, ESTADOS_FLUXO.RECEITA_EMITIDA, {
-        memed_prescription_id: resultado.prescriptionId,
-        memed_pdf_url: resultado.pdfUrl,
-        memed_payload: resultado.fullData
+    if (
+      !memed ||
+      typeof memed.obterTokenMemed !== 'function'
+    ) {
+
+      const tokenFallback =
+        crypto.randomBytes(32).toString('hex')
+
+      return res.json({
+        token: tokenFallback
       })
-      
-      const telefone = dadosPaciente.paciente_telefone
-      const nome = dadosPaciente.paciente_nome
-      const mensagem = `✅ *RECEITA DIGITAL* ✅\n\nOlá ${nome},\n\nSua receita foi gerada!\n\n📄 Baixe aqui: ${resultado.pdfUrl}\n\n👨‍⚕️ Doctor Prescreve`
-      await enviarWhatsAppOficial(telefone, mensagem)
-      
-      res.json({ success: true, pdfUrl: resultado.pdfUrl, prescriptionId: resultado.prescriptionId })
-    } else {
-      const pdfUrl = `${BASE_URL}/api/receita/${atendimentoId}/pdf`
-      res.json({ success: true, pdfUrl: pdfUrl, fallback: true, warning: resultado.error })
     }
-    
-} catch (e) {
 
-  console.error('❌ MEMED PRESCRICAO ERROR:')
-  console.error(e.response?.data || e)
+    const result = await memed.obterTokenMemed()
 
-  res.status(500).json({
-    error: e.message,
-    detalhes: e.response?.data || null
-  })
+    if (result.success) {
 
-}
+      return res.json({
+        token: result.token
+      })
+    }
+
+    return res.status(500).json({
+      error: result.error || 'Erro ao obter token Memed'
+    })
+
+  } catch (error) {
+
+    console.error(
+      '❌ Erro token Memed:',
+      error.message
+    )
+
+    res.status(500).json({
+      error: error.message
+    })
+
+  }
+})
+
+// ========================
+// 🔐 MEMED: STATUS
+// ========================
+app.get('/api/memed/status', auth, async (req, res) => {
+
+  try {
+
+    const status =
+      await memed.verificarStatusConta()
+
+    res.json(status)
+
+  } catch (error) {
+
+    res.status(500).json({
+      error: error.message
+    })
+
+  }
 
 })
 
