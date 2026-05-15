@@ -113,13 +113,11 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
         return res.json({ received: true })
       }
 
-      // Garantir pagamento = true → move pra FILA
       if (at.pagamento) {
         console.log(`⚠️ Pagamento já processado para: ${atendimentoId}`)
         return res.json({ received: true })
       }
 
-      // Validar transição de status
       if (at.status !== ESTADOS_FLUXO.AGUARDANDO_PAGAMENTO) {
         console.error(`❌ Status inválido para pagamento: ${at.status}`)
         return res.json({ received: true })
@@ -151,30 +149,8 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
 // ========================
 app.use(cors())
 
-const dashboardDistPath = path.join(
-  __dirname,
-  'dashboard-medico',
-  'dist',
-  'public'
-)
-
-console.log(
-  '🔍 Tentando servir dashboard de:',
-  dashboardDistPath
-)
-
-if (fs.existsSync(dashboardDistPath)) {
-  console.log('✅ Pasta dist encontrada!')
-
-  app.use(
-    '/assets',
-    express.static(
-      path.join(dashboardDistPath, 'assets')
-    )
-  )
-} else {
-  console.log('❌ Pasta dist NÃO encontrada!')
-}
+// Servir arquivos estáticos da pasta public
+app.use(express.static(path.join(__dirname, 'public')))
 
 app.use(express.json())
 
@@ -442,7 +418,6 @@ function gerarRecomendacoes(tipo) {
   return recomendacoes[tipo] || recomendacoes.OUTRO
 }
 
-// Helper: normalizar doencas (pode vir como string ou array)
 function normalizarDoencas(doencas) {
   if (Array.isArray(doencas)) return doencas.join(', ').toLowerCase()
   if (typeof doencas === 'string') return doencas.toLowerCase()
@@ -465,8 +440,6 @@ app.get('/healthz', async (req, res) => {
     res.status(503).json({ status: 'error', error: e.message })
   }
 })
-
-// Rota raiz removida para dar prioridade ao Dashboard estático
 
 // ========================
 // 🔐 LOGIN
@@ -498,13 +471,12 @@ app.post('/login', (req, res) => {
 })
 
 // ========================
-// 🧠 TRIAGEM (Ponto 10: Validação de Input)
+// 🧠 TRIAGEM
 // ========================
 app.post('/api/webhook/triagem', async (req, res) => {
   try {
     const { paciente = {}, triagem = {} } = req.body
 
-    // Ponto 10: Validação completa de inputs
     const errosValidacao = validarInputTriagem(paciente, triagem)
     if (errosValidacao.length > 0) {
       return res.status(400).json({
@@ -520,13 +492,11 @@ app.post('/api/webhook/triagem', async (req, res) => {
     const doencasElegiveis = ['has', 'diabetes', 'hipertensão', 'hipertensao', 'pressão', 'pressao', 'hipotireoidismo', 'dislipidemia']
     const elegivel = doencasElegiveis.some(d => texto.includes(d))
 
-    // Dados criptografados para LGPD
     const paciente_nome = encrypt(paciente.nome)
     const paciente_telefone = encrypt(paciente.telefone || '')
     const paciente_cpf = encrypt(paciente.cpf || '')
     const paciente_email = encrypt(paciente.email || '')
 
-    // Ponto 3 + 12: Dados clínicos estruturados (visíveis no painel + preparação Memed)
     const dados_clinicos = {
       doenca: texto,
       tipo,
@@ -541,13 +511,6 @@ app.post('/api/webhook/triagem', async (req, res) => {
       risco: "baixo"
     }
 
-    const triagemData = {
-      doenca: texto,
-      tipo,
-      risco: "baixo"
-    }
-
-    // Salvar no banco PostgreSQL
     const atendimento = {
       id,
       paciente: {
@@ -557,7 +520,6 @@ app.post('/api/webhook/triagem', async (req, res) => {
         email: paciente_email,
         data_nascimento: paciente.data_nascimento || null
       },
-      triagem: triagemData,
       dados_clinicos,
       elegivel,
       motivo: elegivel ? 'Condição elegível para renovação remota' : 'Condição não elegível para renovação remota',
@@ -603,7 +565,6 @@ app.get('/api/payment/:id', async (req, res) => {
       return res.status(404).json({ error: 'Atendimento não encontrado' })
     }
 
-    // Ponto 6: Verificar se está no status correto para pagamento
     if (at.status !== ESTADOS_FLUXO.AGUARDANDO_PAGAMENTO) {
       return res.status(400).json({ error: `Status inválido para pagamento: ${at.status}` })
     }
@@ -655,32 +616,20 @@ app.post('/api/atendimento/:id/pronto-decisao', auth, async (req, res) => {
     const at = await db.buscarAtendimentoPorId(req.params.id)
 
     if (!at) {
-      return res.status(404).json({
-        error: 'Atendimento não encontrado'
-      })
+      return res.status(404).json({ error: 'Atendimento não encontrado' })
     }
 
     if (at.status !== ESTADOS_FLUXO.EM_ATENDIMENTO) {
-      return res.status(400).json({
-        error: `Status inválido. Esperado: EM_ATENDIMENTO, atual: ${at.status}`
-      })
+      return res.status(400).json({ error: `Status inválido. Esperado: EM_ATENDIMENTO, atual: ${at.status}` })
     }
 
-    await db.atualizarStatus(
-      req.params.id,
-      ESTADOS_FLUXO.PRONTO_PARA_DECISAO
-    )
+    await db.atualizarStatus(req.params.id, ESTADOS_FLUXO.PRONTO_PARA_DECISAO)
 
-    res.json({
-      success: true,
-      message: 'Paciente movido para PRONTO_PARA_DECISAO'
-    })
+    res.json({ success: true, message: 'Paciente movido para PRONTO_PARA_DECISAO' })
 
   } catch (e) {
     console.error('❌ Erro ao mover para pronto decisão:', e.message)
-    res.status(500).json({
-      error: e.message
-    })
+    res.status(500).json({ error: e.message })
   }
 })
 
@@ -799,9 +748,7 @@ app.get('/api/fila', auth, async (req, res) => {
 
   } catch (e) {
     console.error('❌ Erro ao listar fila:', e.message)
-    res.status(500).json({
-      error: 'Erro ao carregar fila'
-    })
+    res.status(500).json({ error: 'Erro ao carregar fila' })
   }
 })
 
@@ -820,7 +767,6 @@ app.get('/api/atendimentos', auth, async (req, res) => {
         paciente_telefone: safeDecrypt(a.paciente_telefone),
         paciente_cpf: safeDecrypt(a.paciente_cpf),
         paciente_email: safeDecrypt(a.paciente_email),
-        // Ponto 3: Dados clínicos no painel
         doencas: dadosClinicos.doenca || dadosClinicos.condicao || 'N/A',
         medicacao_em_uso: dadosClinicos.medicacao_em_uso || 'N/A',
         tempo_doenca: dadosClinicos.tempo_doenca || 'N/A',
@@ -948,25 +894,34 @@ app.post('/api/fila/pegar-proximo', auth, async (req, res) => {
   }
 })
 
-//=========================
-// PAINEL MEDICO
-//=========================
+// ========================
+// 🏥 PAINEL MEDICO
+// ========================
 app.get('/painel-medico', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'))
+})
 
 // ========================
-// 🔄 REVISÃO DE DECISÃO MÉDICA
+// 📜 HISTÓRICO DE DECISÕES
 // ========================
+app.get('/api/decisoes/log', auth, async (req, res) => {
+  try {
+    const logs = await db.getDecisoesLog()
+    res.json(logs)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 app.post('/api/decisao/:id', auth, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { decisao, orientacoes, medicamento, posologia, receita_memed_id, memed_payload } = req.body;
+    const { id } = req.params
+    const { decisao, orientacoes, medicamento, posologia, receita_memed_id, memed_payload } = req.body
 
-    const at = await db.buscarAtendimentoPorId(id);
+    const at = await db.buscarAtendimentoPorId(id)
 
     if (!at) {
-      return res.status(404).json({ error: 'Atendimento não encontrado' });
+      return res.status(404).json({ error: 'Atendimento não encontrado' })
     }
 
     if (
@@ -975,20 +930,20 @@ app.post('/api/decisao/:id', auth, async (req, res) => {
       at.status !== ESTADOS_FLUXO.APROVADO &&
       at.status !== ESTADOS_FLUXO.RECUSADO
     ) {
-      return res.status(400).json({ error: `Status inválido: ${at.status}` });
+      return res.status(400).json({ error: `Status inválido: ${at.status}` })
     }
 
-    const dadosClinicos = at.dados_clinicos || {};
-    let novoStatus = null;
+    const dadosClinicos = at.dados_clinicos || {}
+    let novoStatus = null
 
     if (decisao === 'APROVAR' || decisao === ESTADOS_FLUXO.APROVADO) {
-      novoStatus = ESTADOS_FLUXO.APROVADO;
+      novoStatus = ESTADOS_FLUXO.APROVADO
     } else if (decisao === 'RECUSAR' || decisao === ESTADOS_FLUXO.RECUSADO) {
-      novoStatus = ESTADOS_FLUXO.RECUSADO;
+      novoStatus = ESTADOS_FLUXO.RECUSADO
     }
 
     if (!novoStatus) {
-      return res.status(400).json({ error: 'Decisão inválida' });
+      return res.status(400).json({ error: 'Decisão inválida' })
     }
 
     const decisaoData = {
@@ -1000,10 +955,9 @@ app.post('/api/decisao/:id', auth, async (req, res) => {
       posologia: posologia || dadosClinicos.posologia_atual || null,
       receita_memed_id: receita_memed_id || null,
       memed_payload: memed_payload || null
-    };
+    }
 
-    await db.atualizarStatus(id, novoStatus, decisaoData);
-
+    await db.atualizarStatus(id, novoStatus, decisaoData)
     await db.salvarDecisaoLog({
       atendimento_id: id,
       medico: req.usuario?.role || 'medico',
@@ -1012,26 +966,129 @@ app.post('/api/decisao/:id', auth, async (req, res) => {
       posologia: decisaoData.posologia,
       observacao: decisaoData.observacao,
       dados_clinicos: dadosClinicos
-    });
+    })
 
-    const telefone = safeDecrypt(at.paciente_telefone);
-    const nome = safeDecrypt(at.paciente_nome);
+    const telefone = safeDecrypt(at.paciente_telefone)
+    const nome = safeDecrypt(at.paciente_nome)
 
     if (telefone) {
       const mensagem = novoStatus === ESTADOS_FLUXO.APROVADO
         ? `✅ Olá ${nome}, sua receita foi aprovada com sucesso! Em breve você receberá o acesso.`
-        : `❌ Olá ${nome}, infelizmente sua solicitação não foi aprovada nesta avaliação.\n\nMotivo: ${orientacoes || 'Análise médica'}`;
+        : `❌ Olá ${nome}, infelizmente sua solicitação não foi aprovada nesta avaliação.\n\nMotivo: ${orientacoes || 'Análise médica'}`
 
-      await enviarWhatsAppOficial(telefone, mensagem);
+      await enviarWhatsAppOficial(telefone, mensagem)
     }
 
-    res.json({ success: true, status: novoStatus });
+    res.json({ success: true, status: novoStatus })
 
   } catch (e) {
-    console.error('❌ Erro decisão médica:', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('❌ Erro decisão médica:', e.message)
+    res.status(500).json({ error: e.message })
   }
-});
+})
+
+// ========================
+// 🔄 REVISÃO DE DECISÃO MÉDICA
+// ========================
+app.put('/api/decisao/:id/revisar', auth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { novaDecisao, motivoRevisao, observacao, medicamento, posologia } = req.body
+
+    const decisoesValidas = ['APROVAR', 'RECUSAR', ESTADOS_FLUXO.APROVADO, ESTADOS_FLUXO.RECUSADO]
+
+    if (!novaDecisao || !decisoesValidas.includes(novaDecisao)) {
+      return res.status(400).json({ error: 'Nova decisão inválida' })
+    }
+
+    const at = await db.buscarAtendimentoPorId(id)
+
+    if (!at) {
+      return res.status(404).json({ error: 'Atendimento não encontrado' })
+    }
+
+    if (at.status !== ESTADOS_FLUXO.APROVADO && at.status !== ESTADOS_FLUXO.RECUSADO) {
+      return res.status(400).json({
+        error: `Só é possível revisar atendimentos com status APROVADO ou RECUSADO. Status atual: ${at.status}`
+      })
+    }
+
+    const dadosClinicos = at.dados_clinicos || at.triagem || {}
+    const statusAnterior = at.status
+    const aprovacao = novaDecisao === 'APROVAR' || novaDecisao === ESTADOS_FLUXO.APROVADO
+    const novoStatus = aprovacao ? ESTADOS_FLUXO.APROVADO : ESTADOS_FLUXO.RECUSADO
+
+    if (aprovacao) {
+      const medicamentoFinal = medicamento || dadosClinicos.medicacao_em_uso
+
+      if (!medicamentoFinal || medicamentoFinal.trim().length === 0) {
+        return res.status(400).json({ error: 'Medicação obrigatória para aprovação na revisão' })
+      }
+
+      const posologiaFinal = posologia || dadosClinicos.posologia_atual || 'Uso contínuo conforme orientação médica'
+
+      const decisaoData = {
+        status: ESTADOS_FLUXO.APROVADO,
+        data: new Date().toISOString(),
+        medico: req.usuario?.role || 'medico',
+        observacao: observacao || `Revisão: ${motivoRevisao || 'Reanálise do caso'}`,
+        medicamento_prescrito: medicamentoFinal,
+        posologia: posologiaFinal
+      }
+
+      await db.atualizarStatus(id, ESTADOS_FLUXO.APROVADO, decisaoData)
+      await db.salvarDecisaoLog({
+        atendimento_id: id,
+        medico: req.usuario?.role || 'medico',
+        decisao: 'REVISAO_APROVAR',
+        medicamento: medicamentoFinal,
+        posologia: posologiaFinal,
+        observacao: `Revisão de ${statusAnterior} para APROVADO. Motivo: ${motivoRevisao || 'Reanálise'}`,
+        dados_clinicos: dadosClinicos
+      })
+
+    } else {
+      const decisaoData = {
+        status: ESTADOS_FLUXO.RECUSADO,
+        data: new Date().toISOString(),
+        medico: req.usuario?.role || 'medico',
+        observacao: observacao || `Revisão: ${motivoRevisao || 'Reanálise do caso'}`
+      }
+
+      await db.atualizarStatus(id, ESTADOS_FLUXO.RECUSADO, decisaoData)
+      await db.salvarDecisaoLog({
+        atendimento_id: id,
+        medico: req.usuario?.role || 'medico',
+        decisao: 'REVISAO_RECUSAR',
+        medicamento: null,
+        posologia: null,
+        observacao: `Revisão de ${statusAnterior} para RECUSADO. Motivo: ${motivoRevisao || 'Reanálise'}`,
+        dados_clinicos: dadosClinicos
+      })
+    }
+
+    const telefone = safeDecrypt(at.paciente_telefone)
+    const nome = safeDecrypt(at.paciente_nome)
+
+    if (telefone) {
+      const mensagem = `🔄 *REVISÃO MÉDICA*\n\nOlá ${nome}, sua solicitação foi revisada.\nStatus anterior: ${statusAnterior}\nNovo status: ${novoStatus}\n\n📝 Motivo: ${motivoRevisao || 'Reanálise do caso'}\n\n👨‍⚕️ Doctor Prescreve`
+      await enviarWhatsAppOficial(telefone, mensagem)
+    }
+
+    res.json({
+      success: true,
+      atendimentoId: id,
+      status_anterior: statusAnterior,
+      status_novo: novoStatus,
+      mensagem: 'Decisão revisada com sucesso',
+      notificacao_enviada: !!telefone
+    })
+
+  } catch (e) {
+    console.error('❌ Erro ao revisar decisão:', e.message)
+    res.status(500).json({ error: 'Erro ao revisar decisão' })
+  }
+})
 
 // ========================
 // 📊 ESTATÍSTICAS DAS DECISÕES
@@ -1039,7 +1096,6 @@ app.post('/api/decisao/:id', auth, async (req, res) => {
 app.get('/api/estatisticas/decisoes', auth, async (req, res) => {
   try {
     const logs = await db.getDecisoesLog()
-    // ✅ CORRIGIDO: aceita ambos os formatos (backward compatibility)
     const aprovados = logs.filter(l => l.decisao === 'APROVADO' || l.decisao === 'APROVAR')
     const recusados = logs.filter(l => l.decisao === 'RECUSADO' || l.decisao === 'RECUSAR')
 
@@ -1060,7 +1116,7 @@ app.get('/api/estatisticas/decisoes', auth, async (req, res) => {
 })
 
 // ========================
-// 📋 PRONTUÁRIO (Ponto 8: Padronizado)
+// 📋 PRONTUÁRIO
 // ========================
 app.get('/api/prontuario/:id', auth, async (req, res) => {
   try {
@@ -1080,7 +1136,6 @@ app.get('/api/prontuario/:id', auth, async (req, res) => {
       email: safeDecrypt(at.paciente_email)
     }
 
-    // Ponto 5 + 8: Usa dado real do paciente, padronizado
     const prontuario = {
       queixa: gerarQueixa(tipo),
       historia: gerarHistoria(tipo),
@@ -1231,18 +1286,20 @@ app.get('/api/prontuario/:id/export', auth, async (req, res) => {
 // ========================
 // 🔐 MEMED: OBTER TOKEN PARA FRONTEND
 // ========================
-// Descomente quando o módulo memed estiver totalmente configurado
-/*
 app.get('/api/memed/token', auth, async (req, res) => {
   try {
-    const token = await memed.obterTokenParaFrontend()
-    res.json({ success: true, token })
+    if (!memed || typeof memed.gerarTokenFrontend !== 'function') {
+      const tokenFallback = crypto.randomBytes(32).toString('hex')
+      return res.json({ token: tokenFallback })
+    }
+    
+    const token = await memed.gerarTokenFrontend()
+    res.json({ token })
   } catch (error) {
-    console.error('❌ Erro ao obter token:', error)
-    res.status(500).json({ error: error.message })
+    console.error('❌ Erro ao gerar token Memed:', error.message)
+    res.status(500).json({ error: 'Erro ao gerar token de autenticação' })
   }
 })
-*/
 
 // ========================
 // 🧪 MEMED: VERIFICAR STATUS DA CONTA
@@ -1257,19 +1314,17 @@ app.get('/api/memed/status', auth, async (req, res) => {
 })
 
 // ========================
-// 📄 RECEITA MÉDICA (Ponto 5: Usando dado real)
+// 📄 RECEITA MÉDICA
 // ========================
 app.post('/api/receita', auth, async (req, res) => {
   try {
     const receita = req.body
     const id = receita.atendimentoId || receita.id || uuidv4()
 
-    // Buscar atendimento para usar dados reais
     const at = await db.buscarAtendimentoPorId(id)
     const dadosClinicos = at?.dados_clinicos || at?.triagem || {}
     const decisao = at?.decisao || {}
 
-    // Ponto 4+5: Medicação DEVE vir do dado real ou da decisão médica
     const medicamentoFinal = receita.medicamento || decisao.medicamento_prescrito || dadosClinicos.medicacao_em_uso
     if (!medicamentoFinal) {
       return res.status(400).json({
@@ -1299,17 +1354,13 @@ app.post('/api/receita', auth, async (req, res) => {
       },
       data_emissao: new Date().toISOString(),
       data_validade: new Date(Date.now() + (parseInt(process.env.RECEITA_VALIDADE_DIAS) || 90) * 24 * 60 * 60 * 1000).toISOString(),
-      assinatura_digital: crypto
-        .createHash('sha256')
-        .update(id + process.env.JWT_SECRET + Date.now())
-        .digest('hex'),
+      assinatura_digital: crypto.createHash('sha256').update(id + process.env.JWT_SECRET + Date.now()).digest('hex'),
       status: 'ATIVA',
       created_at: new Date().toISOString()
     }
 
     await db.salvarReceita(receitaCompleta)
 
-    // Atualizar status para RECEITA_EMITIDA (Ponto 6)
     if (at && at.status === ESTADOS_FLUXO.APROVADO) {
       await db.atualizarStatus(id, ESTADOS_FLUXO.RECEITA_EMITIDA)
     }
@@ -1335,14 +1386,8 @@ app.post('/api/receita', auth, async (req, res) => {
 // Buscar receita
 app.get('/api/receita/:id', auth, async (req, res) => {
   try {
-    const filePath = path.join(DB_DIR, `receita_${req.params.id}.json`)
     const receita = await db.buscarReceitaPorId(req.params.id)
     if (!receita) {
-      // Tenta fallback no arquivo se o DB falhar
-      if (fs.existsSync(filePath)) {
-         const fileData = JSON.parse(fs.readFileSync(filePath, 'utf8'))
-         return res.json(fileData)
-      }
       return res.status(404).json({ valido: false, mensagem: 'Receita não encontrada' })
     }
     res.json(receita)
@@ -1354,7 +1399,6 @@ app.get('/api/receita/:id', auth, async (req, res) => {
 // Gerar PDF da receita
 app.get('/api/receita/:id/pdf', auth, async (req, res) => {
   try {
-    // Tenta buscar do DB primeiro, depois do arquivo
     let receita = await db.buscarReceitaPorId(req.params.id)
     
     if (!receita) {
@@ -1451,7 +1495,6 @@ app.post('/api/receita/:id/enviar-whatsapp', auth, async (req, res) => {
 
     await enviarWhatsAppOficial(telefone, mensagem)
 
-    // Atualiza flag no arquivo local se existir
     const filePath = path.join(DB_DIR, `receita_${req.params.id}.json`)
     if (fs.existsSync(filePath)) {
       const receita = JSON.parse(fs.readFileSync(filePath, 'utf8'))
@@ -1469,7 +1512,6 @@ app.post('/api/receita/:id/enviar-whatsapp', auth, async (req, res) => {
 // Validar receita (público - QR Code)
 app.get('/api/receita/:id/validar', async (req, res) => {
   try {
-    // Tenta DB ou Arquivo
     let receita = await db.buscarReceitaPorId(req.params.id).catch(() => null)
     
     if (!receita) {
@@ -1518,9 +1560,8 @@ app.post('/api/receita/:id/cancelar', auth, async (req, res) => {
     const motivo = req.body.motivo || 'Cancelada pelo médico'
     await db.atualizarStatusReceita(req.params.id, 'CANCELADA', motivo)
 
-    // Sincronizar exclusão com a Memed (Requisito Tasy/MV)
     if (receita.external_id && typeof memed.excluirPrescricaoMemed === 'function') {
-      await memed.excluirPrescricaoMemed(receita.external_id);
+      await memed.excluirPrescricaoMemed(receita.external_id)
     }
 
     const at = await db.buscarAtendimentoPorId(receita.atendimentoId)
@@ -1551,7 +1592,7 @@ app.post('/api/receita/:id/renovar', auth, async (req, res) => {
       renovacao_de: receitaAntiga.numero,
       assinatura_digital: crypto.createHash('sha256').update(novoId + process.env.JWT_SECRET + Date.now()).digest('hex'),
       status: 'ATIVA',
-      external_id: null // Nova receita, novo ID externo se for enviar pra Memed
+      external_id: null
     }
     await db.salvarReceita(novaReceita)
 
@@ -1576,7 +1617,6 @@ app.post('/webhooks/memed', express.json(), async (req, res) => {
     
     console.log('📡 Webhook Memed recebido:', event.type || event.event)
     
-    // Verificar assinatura (se disponível)
     const signature = req.headers['x-memed-signature']
     if (signature && process.env.MEMED_WEBHOOK_SECRET) {
       const expectedSignature = crypto
@@ -1590,16 +1630,13 @@ app.post('/webhooks/memed', express.json(), async (req, res) => {
       }
     }
     
-    // Processar evento de prescrição concluída
     if (event.type === 'prescription.completed' || event.event === 'prescription.completed') {
       const prescriptionData = event.data || event.prescription
       const { external_id, pdf_url, patient_external_id } = prescriptionData
       
-      // Buscar atendimento pelo external_id salvo
       const atendimento = await db.buscarAtendimentoPorId(patient_external_id)
       
       if (atendimento) {
-        // Atualizar status e salvar PDF
         await db.atualizarStatus(atendimento.id, ESTADOS_FLUXO.RECEITA_EMITIDA, {
           memed_prescription_id: external_id,
           memed_receita_url: pdf_url,
@@ -1608,7 +1645,6 @@ app.post('/webhooks/memed', express.json(), async (req, res) => {
         
         console.log(`✅ Receita Memed registrada: ${external_id} para atendimento ${atendimento.id}`)
         
-        // Enviar WhatsApp (via n8n)
         const telefone = safeDecrypt(atendimento.paciente_telefone)
         const nome = safeDecrypt(atendimento.paciente_nome)
         if (telefone) {
@@ -1714,7 +1750,6 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
       return res.status(400).json({ error: 'atendimentoId e status são obrigatórios' })
     }
 
-    // Ponto 6: Validar transição
     const at = await db.buscarAtendimentoPorId(atendimentoId)
     if (!at) {
       return res.status(404).json({ error: 'Atendimento não encontrado' })
@@ -1732,27 +1767,6 @@ app.post('/api/webhook/atualizar-status', async (req, res) => {
   } catch (e) {
     console.error('❌ Erro ao atualizar status:', e.message)
     res.status(500).json({ error: e.message })
-  }
-})
-
-// ========================
-// 🔐 MEMED: GERAR TOKEN PARA FRONTEND (SEGURO)
-// ========================
-app.get('/api/memed/token', auth, async (req, res) => {
-  try {
-    // Verifica se o módulo memed existe e tem a função
-    if (!memed || typeof memed.gerarTokenFrontend !== 'function') {
-      // Fallback: implementação simples se o módulo não tiver a função
-      console.warn('⚠️ Módulo Memed não possui gerarTokenFrontend. Usando fallback.')
-      const tokenFallback = crypto.randomBytes(32).toString('hex')
-      return res.json({ token: tokenFallback })
-    }
-    
-    const token = await memed.gerarTokenFrontend()
-    res.json({ token })
-  } catch (error) {
-    console.error('❌ Erro ao gerar token Memed:', error.message)
-    res.status(500).json({ error: 'Erro ao gerar token de autenticação' })
   }
 })
 
@@ -1777,7 +1791,6 @@ async function startServer() {
   }
 }
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM recebido. Encerrando...')
   await db.closeConnection()
@@ -1788,17 +1801,6 @@ process.on('SIGINT', async () => {
   console.log('🛑 SIGINT recebido. Encerrando...')
   await db.closeConnection()
   process.exit(0)
-})
-
-// Rota catch-all para o Dashboard (Single Page Application)
-// Deve vir DEPOIS de todas as rotas da API
-app.get('*', (req, res) => {
-  const indexPath = path.join(__dirname, 'dashboard-medico', 'dist', 'public', 'index.html')
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath)
-  } else {
-    res.status(404).json({ error: 'Dashboard não encontrado. Verifique se o build foi concluído.' })
-  }
 })
 
 startServer()
