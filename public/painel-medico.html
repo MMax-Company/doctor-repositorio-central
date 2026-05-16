@@ -191,19 +191,19 @@
   let atendimentosData = [];
 
   // Toast
-function showToast(message, type = 'success') {
-   let toast = document.getElementById('toast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'toast';
-    toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#1e293b;color:white;padding:12px 20px;border-radius:12px;z-index:1002;display:none;';
-    document.body.appendChild(toast);
+  function showToast(message, type = 'success') {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'toast';
+      toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#1e293b;color:white;padding:12px 20px;border-radius:12px;z-index:1002;display:none;';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.className = 'toast ' + type;
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 3000);
   }
-  toast.textContent = message;
-  toast.className = 'toast ' + type;
-  toast.style.display = 'block';
-  setTimeout(() => { toast.style.display = 'none'; }, 3000);
-}
 
   // Login
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -272,39 +272,30 @@ function showToast(message, type = 'success') {
     return 'há ' + Math.floor(horas / 24) + 'd';
   }
 
- function getStatusBadge(status, whatsappEnviado) {
-
-  if (status === 'FILA') {
-    return '<span class="status-badge status-fila">EM FILA</span>';
-  }
-
-  if (status === 'EM_ATENDIMENTO') {
-    return '<span class="status-badge status-atendimento">EM ANÁLISE</span>';
-  }
-
-  if (status === 'PRONTO_PARA_DECISAO') {
-    return '<span class="status-badge status-atendimento">AGUARDANDO DECISÃO</span>';
-  }
-
-  if (status === 'APROVADO') {
-    return '<span class="status-badge status-receita-gerada">APROVADO</span>';
-  }
-
-  if (status === 'RECEITA_EMITIDA') {
-
-    if (whatsappEnviado) {
-      return '<span class="status-badge status-receita-enviada">RECEITA ENTREGUE</span>';
+  function getStatusBadge(status, whatsappEnviado) {
+    if (status === 'FILA') {
+      return '<span class="status-badge status-fila">EM FILA</span>';
     }
-
-    return '<span class="status-badge status-receita-gerada">RECEITA EMITIDA</span>';
+    if (status === 'EM_ATENDIMENTO') {
+      return '<span class="status-badge status-atendimento">EM ANÁLISE</span>';
+    }
+    if (status === 'PRONTO_PARA_DECISAO') {
+      return '<span class="status-badge status-atendimento">AGUARDANDO DECISÃO</span>';
+    }
+    if (status === 'APROVADO') {
+      return '<span class="status-badge status-receita-gerada">APROVADO</span>';
+    }
+    if (status === 'RECEITA_EMITIDA') {
+      if (whatsappEnviado) {
+        return '<span class="status-badge status-receita-enviada">RECEITA ENTREGUE</span>';
+      }
+      return '<span class="status-badge status-receita-gerada">RECEITA EMITIDA</span>';
+    }
+    if (status === 'RECUSADO') {
+      return '<span class="status-badge status-recusado">RECUSADO</span>';
+    }
+    return '<span class="status-badge">' + status + '</span>';
   }
-
-  if (status === 'RECUSADO') {
-    return '<span class="status-badge status-recusado">RECUSADO</span>';
-  }
-
-  return '<span class="status-badge">' + status + '</span>';
-}
 
   function gerarQueixa(tipo) {
     const base = { HAS: "Paciente em acompanhamento por hipertensão arterial sistêmica, solicita renovação de receita.", DIABETES: "Paciente em acompanhamento por diabetes mellitus tipo 2, solicita continuidade do tratamento.", HIPOTIREOIDISMO: "Paciente com hipotireoidismo em tratamento, solicita renovação de medicação.", DISLIPIDEMIA: "Paciente com dislipidemia em tratamento, solicita renovação de medicação.", SAUDE_MENTAL: "Paciente em acompanhamento por transtorno de ansiedade/depressão, solicita renovação.", OUTRO: "Paciente em acompanhamento clínico, solicita renovação de medicação de uso contínuo." };
@@ -394,113 +385,118 @@ function showToast(message, type = 'success') {
     } catch(e) { showToast('Erro: ' + e.message, 'error'); }
   }
 
-async function abrirDrawer(id) {
+  async function abrirDrawer(id) {
+    try {
+      const res = await fetch('/api/atendimento/' + id, { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await res.json();
+      const tipo = data.tipo || 'OUTRO';
+      
+      document.getElementById('drawerAtendimentoId').value = id;
+      document.getElementById('drawerPacienteNome').innerText = data.paciente_nome || 'Não informado';
+      document.getElementById('drawerPacienteTel').innerText = data.paciente_telefone || 'Não informado';
+      document.getElementById('drawerDoenca').innerText = data.doencas || 'Não informado';
+      document.getElementById('drawerMedicacao').innerText = data.medicacao_em_uso || 'Não informado';
+      document.getElementById('drawerQueixa').innerText = gerarQueixa(tipo);
+      document.getElementById('drawerHistoria').innerText = gerarHistoria(tipo);
+      document.getElementById('drawerExame').innerText = gerarExameFisico(tipo);
+      document.getElementById('drawerConduta').innerText = gerarConduta(tipo);
+      document.getElementById('drawerObservacao').value = '';
+      
+      document.getElementById('drawer').classList.add('open');
+      document.getElementById('drawerOverlay').style.display = 'block';
+    } catch(e) {
+      console.error(e);
+      showToast('Erro ao abrir prontuário', 'error');
+    }
+  }
 
-  try {
+  // Botão APROVAR
+  document.getElementById('drawerBtnAprovar').onclick = async () => {
+    const id = document.getElementById('drawerAtendimentoId').value;
+    const observacao = document.getElementById('drawerObservacao').value;
+    const medicamento = document.getElementById('drawerMedicacao').innerText;
+    const posologia = prompt('Posologia:', '1 comprimido ao dia');
+    if (!posologia) return;
+    
+    showToast('🔄 Gerando receita...', 'warning');
+    
+    try {
+      const res = await fetch('/api/memed/prescricao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ atendimentoId: id, medicamento, posologia, observacao })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('drawerOverlay').style.display = 'none';
+        carregarDados();
+        showToast('✅ Receita gerada!', 'success');
+        if (data.pdfUrl) window.open(data.pdfUrl, '_blank');
+      } else {
+        showToast('❌ ' + (data.error || 'Erro'), 'error');
+      }
+    } catch(e) {
+      console.error(e);
+      showToast('Erro ao gerar receita', 'error');
+    }
+  };
 
-    const res = await fetch(
-      '/api/atendimento/' + id,
-      {
-        headers: {
-          'Authorization': 'Bearer ' + token
+  // Botão RECUSAR
+  document.getElementById('drawerBtnRecusar').onclick = async () => {
+    const id = document.getElementById('drawerAtendimentoId').value;
+    const observacao = document.getElementById('drawerObservacao').value;
+    const motivo = prompt('Motivo da recusa:', 'Não elegível para renovação remota');
+    if (!motivo) return;
+    
+    try {
+      const res = await fetch('/api/decisao/' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ decisao: 'RECUSADO', orientacoes: motivo + (observacao ? '\n\nObs: ' + observacao : '') })
+      });
+      if (res.ok) {
+        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('drawerOverlay').style.display = 'none';
+        carregarDados();
+        showToast('❌ Consulta recusada.', 'warning');
+      } else { showToast('Erro ao recusar', 'error'); }
+    } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+  };
+
+  async function reenviarReceita(id) {
+    try {
+      const res = await fetch('/api/receita/' + id + '/enviar-whatsapp', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+      if (res.ok) showToast('✅ Receita reenviada!', 'success');
+      else showToast('Erro ao reenviar', 'error');
+    } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+  }
+
+  function verPDFReceita(id) { window.open('/api/receita/' + id + '/pdf', '_blank'); }
+  
+  function verMotivoRecusa(id) {
+    const at = atendimentosData.find(a => a.id === id);
+    alert('Motivo da recusa:\n\n' + (at?.decisao?.observacao || 'Não informado'));
+  }
+
+  // Inicializar Memed
+  async function inicializarMemed() {
+    try {
+      const response = await fetch('/api/memed/token', { headers: { Authorization: 'Bearer ' + token } });
+      const data = await response.json();
+      const script = document.createElement('script');
+      script.src = 'https://cdn.memed.com.br/widget/mdhub.js';
+      script.setAttribute('data-token', data.token);
+      script.onload = async () => {
+        if (typeof MdHub !== 'undefined') {
+          await MdHub.module.waitForReady();
+          console.log('✅ Memed pronta');
         }
-      }
-    );
-
-    const data = await res.json();
-
-    document.getElementById('drawerAtendimentoId').value = id;
-
-    document.getElementById('drawerPacienteNome').innerText =
-      data.paciente_nome || 'Não informado';
-
-    document.getElementById('drawerPacienteTel').innerText =
-      data.paciente_telefone || 'Não informado';
-
-    document.getElementById('drawerDoenca').innerText =
-      data.doencas || 'Não informado';
-
-    document.getElementById('drawerMedicacao').innerText =
-      data.medicacao_em_uso || 'Não informado';
-
-    const tipo = data.tipo || 'OUTRO';
-
-    document.getElementById('drawerQueixa').innerText =
-      gerarQueixa(tipo);
-
-    document.getElementById('drawerHistoria').innerText =
-      gerarHistoria(tipo);
-
-    document.getElementById('drawerExame').innerText =
-      gerarExameFisico(tipo);
-
-    document.getElementById('drawerConduta').innerText =
-      gerarConduta(tipo);
-
-    document.getElementById('drawerObservacao').value = '';
-
-    document.getElementById('drawer').classList.add('open');
-
-    document.getElementById('drawerOverlay').style.display = 'block';
-
-  } catch (e) {
-
-    console.error(e);
-
-    showToast(
-      'Erro ao abrir prontuário',
-      'error'
-    );
-
+      };
+      document.body.appendChild(script);
+    } catch (e) { console.error(e); }
   }
 
-}
-
-  function verPDFReceita(id) {
-  window.open('/api/receita/' + id + '/pdf', '_blank');
-}
-
-function verMotivoRecusa(id) {
-  const at = atendimentosData.find(a => a.id === id);
-
-  alert(
-    'Motivo da recusa:\n\n' +
-    (at?.decisao?.observacao || 'Não informado')
-  );
-}
-</script>
-
-<script>
-async function inicializarMemed() {
-
-  try {
-
-    const response = await fetch('/api/memed/token', {
-      headers: {
-        Authorization: 'Bearer ' + token
-      }
-    });
-const data = await response.json();
-
-const script = document.createElement('script');
-script.src = 'https://cdn.memed.com.br/widget/mdhub.js';  // URL como string
-script.setAttribute('data-token', data.token);
-
-script.onload = async () => {
-  if (typeof MdHub !== 'undefined') {
-    await MdHub.module.waitForReady();
-    console.log('✅ Memed pronta');
-  }
-};
-
-document.body.appendChild(script);
-
-} catch (e) {
-  console.error(e);
-}
-}
-
-if (token) {
-  inicializarMemed();
-}
+  if (token) { inicializarMemed(); }
 </script>
