@@ -394,85 +394,67 @@ function showToast(message, type = 'success') {
     } catch(e) { showToast('Erro: ' + e.message, 'error'); }
   }
 
-  async function abrirDrawer(id) {
-    try {
-      const res = await fetch('/api/atendimento/' + id, { headers: { 'Authorization': 'Bearer ' + token } });
-      const data = await res.json();
-      const tipo = data.tipo || 'OUTRO';
-      
-      document.getElementById('drawerAtendimentoId').value = id;
-      document.getElementById('drawerPacienteNome').innerText = data.paciente_nome;
-      document.getElementById('drawerPacienteTel').innerText = data.paciente_telefone;
-      document.getElementById('drawerDoenca').innerText = data.doencas;
-      document.getElementById('drawerMedicacao').innerText = data.medicacao_em_uso;
-      document.getElementById('drawerQueixa').innerText = gerarQueixa(tipo);
-      document.getElementById('drawerHistoria').innerText = gerarHistoria(tipo);
-      document.getElementById('drawerExame').innerText = gerarExameFisico(tipo);
-      document.getElementById('drawerConduta').innerText = gerarConduta(tipo);
-      document.getElementById('drawerObservacao').value = '';
-      
-      document.getElementById('drawer').classList.add('open');
-      document.getElementById('drawerOverlay').style.display = 'block';
-    } catch(e) { showToast('Erro: ' + e.message, 'error'); }
-  }
+async function abrirDrawer(id) {
 
-  document.getElementById('drawerBtnAprovar').onclick = async () => {
-    const id = document.getElementById('drawerAtendimentoId').value;
-    const observacao = document.getElementById('drawerObservacao').value;
-    const medicamento = document.getElementById('drawerMedicacao').innerText;
-    const posologia = prompt('Posologia:', '1 comprimido ao dia');
-    if (!posologia) return;
-    
-    showToast('🔄 Gerando receita...', 'warning');
-    
-    try {
-      const res = await fetch('/api/memed/prescricao', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ atendimentoId: id, medicamento, posologia, observacao })
-      });
-      const data = await res.json();
-      
-      if (data.success) {
-        document.getElementById('drawer').classList.remove('open');
-        document.getElementById('drawerOverlay').style.display = 'none';
-        carregarDados();
-        showToast('✅ Receita gerada e enviada por WhatsApp!', 'success');
-        if (data.pdfUrl) window.open(data.pdfUrl, '_blank');
-      } else {
-        showToast('❌ Erro: ' + (data.error || 'Falha na geração'), 'error');
+  try {
+
+    const res = await fetch(
+      '/api/atendimento/' + id,
+      {
+        headers: {
+          'Authorization': 'Bearer ' + token
+        }
       }
-    } catch(e) { showToast('Erro: ' + e.message, 'error'); }
-  };
+    );
 
-  document.getElementById('drawerBtnRecusar').onclick = async () => {
-    const id = document.getElementById('drawerAtendimentoId').value;
-    const observacao = document.getElementById('drawerObservacao').value;
-    const motivo = prompt('Motivo da recusa:', 'Não elegível para renovação remota');
-    if (!motivo) return;
-    
-    try {
-      const res = await fetch('/api/decisao/' + id, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ decisao: 'RECUSADO', orientacoes: motivo + (observacao ? '\n\nObs: ' + observacao : '') })
-      });
-      if (res.ok) {
-        document.getElementById('drawer').classList.remove('open');
-        document.getElementById('drawerOverlay').style.display = 'none';
-        carregarDados();
-        showToast('❌ Consulta recusada. Paciente notificado.', 'warning');
-      } else { showToast('Erro ao recusar', 'error'); }
-    } catch(e) { showToast('Erro: ' + e.message, 'error'); }
-  };
+    const data = await res.json();
 
-  async function reenviarReceita(id) {
-    try {
-      const res = await fetch('/api/receita/' + id + '/enviar-whatsapp', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
-      if (res.ok) showToast('✅ Receita reenviada por WhatsApp!', 'success');
-      else showToast('Erro ao reenviar', 'error');
-    } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+    document.getElementById('drawerAtendimentoId').value = id;
+
+    document.getElementById('drawerPacienteNome').innerText =
+      data.paciente_nome || 'Não informado';
+
+    document.getElementById('drawerPacienteTel').innerText =
+      data.paciente_telefone || 'Não informado';
+
+    document.getElementById('drawerDoenca').innerText =
+      data.doencas || 'Não informado';
+
+    document.getElementById('drawerMedicacao').innerText =
+      data.medicacao_em_uso || 'Não informado';
+
+    const tipo = data.tipo || 'OUTRO';
+
+    document.getElementById('drawerQueixa').innerText =
+      gerarQueixa(tipo);
+
+    document.getElementById('drawerHistoria').innerText =
+      gerarHistoria(tipo);
+
+    document.getElementById('drawerExame').innerText =
+      gerarExameFisico(tipo);
+
+    document.getElementById('drawerConduta').innerText =
+      gerarConduta(tipo);
+
+    document.getElementById('drawerObservacao').value = '';
+
+    document.getElementById('drawer').classList.add('open');
+
+    document.getElementById('drawerOverlay').style.display = 'block';
+
+  } catch (e) {
+
+    console.error(e);
+
+    showToast(
+      'Erro ao abrir prontuário',
+      'error'
+    );
+
   }
+
+}
 
   function verPDFReceita(id) {
   window.open('/api/receita/' + id + '/pdf', '_blank');

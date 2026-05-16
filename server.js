@@ -1500,7 +1500,7 @@ app.get('/api/receita/:id', auth, async (req, res) => {
 })
 
 // Gerar PDF da receita
-app.get('/api/receita/:id/pdf', auth, async (req, res) => {
+app.get('/api/receita/:id/pdf', async (req, res) => {
   try {
     let receita = await db.buscarReceitaPorId(req.params.id)
     
