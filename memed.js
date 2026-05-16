@@ -71,7 +71,7 @@ async function verificarStatusConta() {
 /**
  * Obter token para o frontend (usado pelo script MdHub)
  */
-async function obterTokenMemed(req, res) {
+async function obterTokenMemed() {
   try {
     const token = await gerarTokenPrescritor()
     if (!token) {
@@ -101,14 +101,51 @@ async function salvarReceitaMemed(atendimentoId, memedData) {
       memed_payload: memedData
     }
     
-    // Salvar no banco (implementar conforme seu db)
-    // await db.salvarReceita(receita)
-    
     console.log(`✅ Receita Memed salva para atendimento ${atendimentoId}`)
     return receita
   } catch (error) {
     console.error('❌ Erro ao salvar receita:', error.message)
     return null
+  }
+}
+
+/**
+ * Gerar prescrição Memed
+ */
+async function gerarPrescricaoMemed(paciente, medicamento, posologia, observacao = '') {
+  try {
+    const token = await gerarTokenPrescritor()
+    if (!token) {
+      throw new Error('Token Memed inválido')
+    }
+
+    // FALLBACK TEMPORÁRIO - até integrar endpoint real da Memed
+    // Gera um ID simulado e URL de PDF demo
+    const prescriptionId = crypto.randomUUID()
+    const pdfUrl = `${process.env.BASE_URL || 'http://localhost:3002'}/api/receita/${prescriptionId}/pdf`
+    
+    console.log(`✅ Prescrição gerada (modo fallback): ${prescriptionId}`)
+    
+    return {
+      success: true,
+      prescriptionId: prescriptionId,
+      pdfUrl: pdfUrl,
+      fullData: {
+        paciente,
+        medicamento,
+        posologia,
+        observacao,
+        generated_at: new Date().toISOString(),
+        fallback: true
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erro gerarPrescricaoMemed:', error.message)
+    return {
+      success: false,
+      error: error.message,
+      fallback: true
+    }
   }
 }
 
@@ -143,10 +180,12 @@ async function testarConexao() {
   }
 }
 
+// Exportar todas as funções
 module.exports = {
   gerarTokenPrescritor,
   verificarStatusConta,
   obterTokenMemed,
   salvarReceitaMemed,
-  testarConexao
+  testarConexao,
+  gerarPrescricaoMemed
 }
