@@ -291,6 +291,28 @@ function decrypt(text) {
   }
 }
 
+function normalizarMedicamentosReceita(receita = {}, atendimento = null) {
+  let medicamentos = receita.medicamentos
+  if (typeof medicamentos === 'string') {
+    try {
+      medicamentos = JSON.parse(medicamentos)
+    } catch (e) {
+      medicamentos = null
+    }
+  }
+
+  if (Array.isArray(medicamentos) && medicamentos.length > 0) return medicamentos
+
+  const dadosClinicos = atendimento?.dados_clinicos || atendimento?.triagem || {}
+  const decisao = atendimento?.decisao || {}
+  return [{
+    nome: decisao.medicamento_prescrito || dadosClinicos.medicacao_em_uso || receita.medicamento || 'Medicamento não informado',
+    posologia: decisao.posologia || dadosClinicos.posologia_atual || receita.posologia || 'Uso conforme orientação médica',
+    quantidade: receita.quantidade || 30,
+    duracao: receita.duracao || '30 dias'
+  }]
+}
+
 function safeDecrypt(text) {
   try {
     return decrypt(text)
@@ -1659,10 +1681,18 @@ app.get('/api/receita/:id/pdf', async (req, res) => {
       receita = JSON.parse(fs.readFileSync(filePath, 'utf8'))
     }
 
-    const at = await db.buscarAtendimentoPorId(req.params.id).catch(() => null)
+    const atendimentoId = receita.atendimentoId || receita.atendimento_id || req.params.id
+    const at = await db.buscarAtendimentoPorId(atendimentoId).catch(() => null)
+    const medicamentos = normalizarMedicamentosReceita(receita, at)
+    const medico = receita.medico || {
+      nome: String(process.env.MEDICO_NOME ? `Dr. ${process.env.MEDICO_NOME} ${process.env.MEDICO_SOBRENOME || ''}` : 'Dr. Plantonista').trim(),
+      registro: process.env.MEDICO_NUMERO ? `${process.env.MEDICO_CONSELHO || 'CRM'} ${process.env.MEDICO_NUMERO}` : 'CRM 12345',
+      especialidade: 'Clínica Geral'
+    }
+    const assinaturaDigital = receita.assinatura_digital || crypto.createHash('sha256').update(String(receita.id || req.params.id)).digest('hex')
 
     res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `inline; filename=receita_${receita.numero}.pdf`)
+    res.setHeader('Content-Disposition', `inline; filename=receita_${receita.numero || req.params.id}.pdf`)
 
     const doc = new PDFDocument({ margin: 50, size: 'A4' })
     doc.pipe(res)
@@ -1675,9 +1705,9 @@ app.get('/api/receita/:id/pdf', async (req, res) => {
     doc.fontSize(16).fillColor('#000').text('RECEITA MÉDICA', { align: 'center' }).moveDown()
 
     doc.fontSize(10)
-      .text(`Número: ${receita.numero}`, { continued: true })
-      .text(`                    Emissão: ${new Date(receita.data_emissao).toLocaleDateString('pt-BR')}`)
-      .text(`Validade: ${new Date(receita.data_validade).toLocaleDateString('pt-BR')}`)
+      .text(`Número: ${receita.numero || req.params.id}`, { continued: true })
+      .text(`                    Emissão: ${new Date(receita.data_emissao || receita.created_at || Date.now()).toLocaleDateString('pt-BR')}`)
+      .text(`Validade: ${new Date(receita.data_validade || Date.now() + (parseInt(process.env.RECEITA_VALIDADE_DIAS) || 90) * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')}`)
       .moveDown()
 
     doc.fontSize(12).fillColor('#1a6b8a').text('IDENTIFICAÇÃO DO PACIENTE', { underline: true }).moveDown(0.5)
@@ -1688,12 +1718,12 @@ app.get('/api/receita/:id/pdf', async (req, res) => {
 
     doc.fontSize(12).fillColor('#1a6b8a').text('MEDICAMENTOS PRESCRITOS', { underline: true }).moveDown(0.5)
 
-    receita.medicamentos.forEach((med, index) => {
+    medicamentos.forEach((med, index) => {
       doc.fontSize(10).fillColor('#000')
-        .text(`${index + 1}. ${med.nome.toUpperCase()}`)
-        .text(`   Posologia: ${med.posologia}`)
-        .text(`   Quantidade: ${med.quantidade} unidades`)
-        .text(`   Duração: ${med.duracao}`)
+        .text(`${index + 1}. ${String(med.nome || 'Medicamento não informado').toUpperCase()}`)
+        .text(`   Posologia: ${med.posologia || 'Uso conforme orientação médica'}`)
+        .text(`   Quantidade: ${med.quantidade || 30} unidades`)
+        .text(`   Duração: ${med.duracao || '30 dias'}`)
         .moveDown(0.5)
     })
 
@@ -1704,15 +1734,15 @@ app.get('/api/receita/:id/pdf', async (req, res) => {
 
     doc.moveDown().fontSize(12).fillColor('#1a6b8a').text('IDENTIFICAÇÃO DO MÉDICO', { underline: true }).moveDown(0.5)
     doc.fontSize(10).fillColor('#000')
-      .text(`Nome: ${receita.medico.nome}`)
-      .text(`Registro: ${receita.medico.registro}`)
-      .text(`Especialidade: ${receita.medico.especialidade}`)
+      .text(`Nome: ${medico.nome}`)
+      .text(`Registro: ${medico.registro}`)
+      .text(`Especialidade: ${medico.especialidade}`)
 
     doc.moveDown().fontSize(8).fillColor('#999')
-      .text(`Assinatura Digital: ${receita.assinatura_digital.substring(0, 20)}...`, { align: 'center' })
+      .text(`Assinatura Digital: ${assinaturaDigital.substring(0, 20)}...`, { align: 'center' })
 
     try {
-      const qrData = JSON.stringify({ numero: receita.numero, valido: true, url: `${BASE_URL}/api/receita/${req.params.id}/validar` })
+      const qrData = JSON.stringify({ numero: receita.numero || req.params.id, valido: true, url: `${BASE_URL}/api/receita/${req.params.id}/validar` })
       const qrCodeBuffer = await QRCode.toBuffer(qrData, { type: 'png', width: 100 })
       doc.image(qrCodeBuffer, 450, doc.y - 80, { width: 80 })
     } catch (qrErr) {
@@ -1794,12 +1824,12 @@ app.post('/api/receita/:id/emitir', auth, async (req, res) => {
 
         doc.fontSize(12).fillColor('#1a6b8a').text('MEDICAMENTOS PRESCRITOS', { underline: true }).moveDown(0.5)
 
-        receita.medicamentos.forEach((med, index) => {
+        normalizarMedicamentosReceita(receita, at).forEach((med, index) => {
           doc.fontSize(10).fillColor('#000')
-            .text(`${index + 1}. ${med.nome.toUpperCase()}`)
-            .text(`   Posologia: ${med.posologia}`)
-            .text(`   Quantidade: ${med.quantidade} unidades`)
-            .text(`   Duração: ${med.duracao}`)
+            .text(`${index + 1}. ${String(med.nome || 'Medicamento não informado').toUpperCase()}`)
+            .text(`   Posologia: ${med.posologia || 'Uso conforme orientação médica'}`)
+            .text(`   Quantidade: ${med.quantidade || 30} unidades`)
+            .text(`   Duração: ${med.duracao || '30 dias'}`)
             .moveDown(0.5)
         })
 
@@ -1855,14 +1885,24 @@ app.post('/api/receita/:id/emitir', auth, async (req, res) => {
 // Enviar receita por WhatsApp
 app.post('/api/receita/:id/enviar-whatsapp', auth, async (req, res) => {
   try {
-    const at = await db.buscarAtendimentoPorId(req.params.id)
+    let atendimentoId = req.params.id
+    let at = await db.buscarAtendimentoPorId(atendimentoId)
+    if (!at) {
+      const receita = await db.buscarReceitaPorId(req.params.id).catch(() => null)
+      atendimentoId = receita?.atendimentoId || receita?.atendimento_id || atendimentoId
+      at = await db.buscarAtendimentoPorId(atendimentoId)
+    }
     if (!at) return res.status(404).json({ error: 'Atendimento não encontrado' })
 
     const telefone = safeDecrypt(at.paciente_telefone)
     const nome = safeDecrypt(at.paciente_nome)
     if (!telefone) return res.status(400).json({ error: 'Paciente sem telefone cadastrado' })
 
-    const pdfUrl = `${BASE_URL}/api/receita/${req.params.id}/pdf`
+    const receitas = typeof db.listarReceitasPorAtendimento === 'function'
+      ? await db.listarReceitasPorAtendimento(atendimentoId).catch(() => [])
+      : []
+    const receitaLink = receitas && receitas.length ? receitas[receitas.length - 1] : null
+    const pdfUrl = `${BASE_URL}/api/receita/${receitaLink?.id || req.params.id}/pdf`
     const mensagem = `📄 *RECEITA MÉDICA* 📄\n\nOlá ${nome},\n\nSua receita foi gerada com sucesso!\n\n🔗 *Link:* ${pdfUrl}\n\n📱 Apresente em qualquer farmácia.\n✅ *Validade:* 90 dias\n\n👨‍⚕️ Doctor Prescreve`
 
     await enviarWhatsAppOficial(telefone, mensagem)
@@ -1885,8 +1925,12 @@ app.post('/api/receita/:id/enviar-whatsapp', auth, async (req, res) => {
 app.get('/api/receita/:id/signed', auth, async (req, res) => {
   try {
     const id = req.params.id
-    const receita = await db.buscarReceitaPorId(id)
-    if (!receita) return res.status(404).json({ error: 'Receita não encontrada' })
+    let receita = await db.buscarReceitaPorId(id)
+    if (!receita && typeof db.listarReceitasPorAtendimento === 'function') {
+      const receitas = await db.listarReceitasPorAtendimento(id).catch(() => [])
+      receita = receitas && receitas.length ? receitas[receitas.length - 1] : null
+    }
+    if (!receita) return res.json({ url: `${BASE_URL}/api/receita/${id}/pdf`, fallback: true })
 
     // Preferir storage_path salvo
     const storagePath = receita.storage_path || receita.storage_path_path || receita.storagePath || receita.storage_path
@@ -1897,7 +1941,7 @@ app.get('/api/receita/:id/signed', auth, async (req, res) => {
     }
 
     // Fallback para gerar PDF on-the-fly
-    return res.json({ url: `${BASE_URL}/api/receita/${id}/pdf` })
+    return res.json({ url: `${BASE_URL}/api/receita/${receita.id || id}/pdf`, fallback: true })
   } catch (e) {
     console.error('❌ Erro ao gerar signed URL:', e.message)
     res.status(500).json({ error: 'Erro ao gerar signed URL' })

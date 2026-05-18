@@ -1,0 +1,91 @@
+{
+  "atendimentoId": "b10f3d97-4b93-42dd-8a0f-8e1335c0b03a",
+  "stripe": {
+    "status": 200,
+    "body": "{\"received\":true}"
+  },
+  "login": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoibWVkaWNvIiwidGltZXN0YW1wIjoxNzc5MTE1MjMwMjg1LCJpYXQiOjE3NzkxMTUyMzAsImV4cCI6MTc3OTE0NDAzMH0.lpYs01qciciUhdSJb-__LZ9PWV8zn6mm2XfXLrooCTo",
+      "mensagem": "Login realizado com sucesso",
+      "expira_em": "8 horas"
+    }
+  },
+  "iniciar": {
+    "status": 400,
+    "body": {
+      "error": "Status inválido. Esperado: FILA, atual: PRONTO_PARA_DECISAO"
+    }
+  },
+  "pronto": {
+    "status": 400,
+    "body": {
+      "error": "Status inválido. Esperado: EM_ATENDIMENTO, atual: PRONTO_PARA_DECISAO"
+    }
+  },
+  "decisao": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "status": "APROVADO"
+    }
+  },
+  "emitir": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "receita": {
+        "id": "b8014d4f-ebd2-4ba9-b653-33cb91136ae7",
+        "atendimentoId": "b10f3d97-4b93-42dd-8a0f-8e1335c0b03a",
+        "url": null,
+        "storage_path": "receitas/2026/05/receita-b8014d4f-ebd2-4ba9-b653-33cb91136ae7.pdf",
+        "created_at": "2026-05-18T14:40:30.728Z"
+      }
+    }
+  },
+  "listar_receitas": {
+    "status": 200,
+    "body": {
+      "total": 4,
+      "receitas": [
+        {
+          "id": "8248638f-4138-4830-80b5-6b8bacaecd97",
+          "atendimentoId": "b10f3d97-4b93-42dd-8a0f-8e1335c0b03a",
+          "url": null,
+          "storage_path": "receitas/2026/05/receita-8248638f-4138-4830-80b5-6b8bacaecd97.pdf",
+          "created_at": "2026-05-18T12:12:48.916Z"
+        },
+        {
+          "id": "3882b90f-3ba2-4f36-b397-b80ed7f56912",
+          "atendimentoId": "b10f3d97-4b93-42dd-8a0f-8e1335c0b03a",
+          "url": null,
+          "storage_path": "receitas/2026/05/receita-3882b90f-3ba2-4f36-b397-b80ed7f56912.pdf",
+          "created_at": "2026-05-18T14:37:47.133Z"
+        },
+        {
+          "id": "81a1846c-6ebb-4f8d-a83f-318f25725d69",
+          "atendimentoId": "b10f3d97-4b93-42dd-8a0f-8e1335c0b03a",
+          "url": null,
+          "storage_path": "receitas/2026/05/receita-81a1846c-6ebb-4f8d-a83f-318f25725d69.pdf",
+          "created_at": "2026-05-18T14:39:04.551Z"
+        },
+        {
+          "id": "b8014d4f-ebd2-4ba9-b653-33cb91136ae7",
+          "atendimentoId": "b10f3d97-4b93-42dd-8a0f-8e1335c0b03a",
+          "url": null,
+          "storage_path": "receitas/2026/05/receita-b8014d4f-ebd2-4ba9-b653-33cb91136ae7.pdf",
+          "created_at": "2026-05-18T14:40:30.728Z"
+        }
+      ]
+    }
+  },
+  "signed": {
+    "status": 200,
+    "body": {
+      "url": "http://localhost:3002/api/receita/8248638f-4138-4830-80b5-6b8bacaecd97/pdf",
+      "fallback": true
+    }
+  }
+}

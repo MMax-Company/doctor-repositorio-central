@@ -1,22 +1,21 @@
-HTTP/1.1 200 OK
-Access-Control-Allow-Origin: *
-Content-Security-Policy: default-src 'self';script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://sandbox.memed.com.br https://cdn.memed.com.br https://integrations.memed.com.br;style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:;img-src 'self' data: https:;connect-src 'self' https://sandbox.memed.com.br https://integrations.memed.com.br;script-src-attr 'unsafe-inline';frame-src 'self' https://sandbox.memed.com.br;base-uri 'self';form-action 'self';frame-ancestors 'self';object-src 'none';upgrade-insecure-requests
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Resource-Policy: same-origin
-Origin-Agent-Cluster: ?1
-Referrer-Policy: no-referrer
-Strict-Transport-Security: max-age=15552000; includeSubDomains
-X-Content-Type-Options: nosniff
-X-DNS-Prefetch-Control: off
-X-Download-Options: noopen
-X-Frame-Options: SAMEORIGIN
-X-Permitted-Cross-Domain-Policies: none
-X-XSS-Protection: 0
-Content-Type: application/json; charset=utf-8
-Content-Length: 103
-ETag: W/"67-ZUKn4+z72O1HIxq15vrO/Sh2z5Q"
-Date: Mon, 18 May 2026 11:37:31 GMT
-Connection: keep-alive
-Keep-Alive: timeout=5
-
-{"status":"online","database":"connected","timestamp":"2026-05-18T11:37:31.916Z","uptime":3277.7224518}
+﻿HTTP/1.1 200 
+: *
+ : default-src 'self';script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://sandbox.memed.com.br https://cdn.memed.com.br https://integrations.memed.com.br;style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:;img-src 'self' data: https:;connect-src 'self' https://sandbox.memed.com.br https://integrations.memed.com.br;script-src-attr 'unsafe-inline';frame-src 'self' https://sandbox.memed.com.br;base-uri 'self';form-action 'self';frame-ancestors 'self';object-src 'none';upgrade-insecure-requests
+ : same-origin
+ : same-origin
+ : ?1
+ : no-referrer
+ : max-age=15552000; includeSubDomains
+ : nosniff
+ : off
+ : noopen
+ : SAMEORIGIN
+ : none
+ : 0
+ : keep-alive
+ : timeout=5
+ : 103
+ : application/json; charset=utf-8
+ : Mon, 18 May 2026 12:05:10 GMT
+ : W/"67-Hyp2gjh3y5Jt+6i/FxJyxXWQr5s"
+{"status":"online","database":"connected","timestamp":"2026-05-18T12:05:10.323Z","uptime":4936.1288367}

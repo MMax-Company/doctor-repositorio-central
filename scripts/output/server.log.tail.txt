@@ -1,1 +1,1 @@
-server.log não encontrado
+﻿server.log nÃ£o encontrado

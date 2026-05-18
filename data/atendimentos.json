@@ -60,9 +60,50 @@
     },
     "elegivel": true,
     "motivo": "Condição elegível para renovação remota",
+    "status": "RECEITA_EMITIDA",
+    "pagamento": true,
+    "criadoEm": "2026-05-18T11:37:34.067Z",
+    "created_at": "2026-05-18T11:37:34.067Z",
+    "pago_em": "2026-05-18T12:09:48.980Z",
+    "updated_at": "2026-05-18T14:40:31.178Z",
+    "data": "2026-05-18T14:40:30.461Z",
+    "medico": "medico",
+    "observacao": "",
+    "medicamento_prescrito": "losartana 50mg",
+    "posologia": "1 comprimido ao dia",
+    "receita_memed_id": null,
+    "memed_payload": null,
+    "memed_pdf_url": null,
+    "memed_prescription_id": "b8014d4f-ebd2-4ba9-b653-33cb91136ae7",
+    "receita_emitida_em": "2026-05-18T14:40:30.728Z"
+  },
+  {
+    "id": "15928dfb-7853-4f48-b823-18e025502fb9",
+    "paciente": {
+      "nome": "a64919d1165d05922474e7c2cb3669a5:67e852909b34b36e5778f2c4f7c9b241",
+      "cpf": "7abcae8e4d50a75674e7fdf33d297ae3:fc1587f8fb3c0621ed683e0c77280080",
+      "telefone": "fb7df675fc31dcb4114b28abdf0eb164:4f30bb4d4f25fff80c7feece52f65c60",
+      "email": "275de1c79b11a3ef8b11de459c182435:d948381bc7efa45ac9aa283fac5db4059b7d8c67ed5caa2d8d41dfce6faf2a84",
+      "data_nascimento": "1980-01-01"
+    },
+    "dados_clinicos": {
+      "doenca": "hipertensão",
+      "tipo": "HAS",
+      "medicacao_em_uso": "losartana 50mg",
+      "posologia_atual": null,
+      "tempo_doenca": "365",
+      "receita_vencida_dias": null,
+      "ultima_consulta": null,
+      "comorbidades": null,
+      "alergias": null,
+      "elegivel_protocolo": true,
+      "risco": "baixo"
+    },
+    "elegivel": true,
+    "motivo": "Condição elegível para renovação remota",
     "status": "AGUARDANDO_PAGAMENTO",
     "pagamento": false,
-    "criadoEm": "2026-05-18T11:37:34.067Z",
-    "created_at": "2026-05-18T11:37:34.067Z"
+    "criadoEm": "2026-05-18T12:05:10.403Z",
+    "created_at": "2026-05-18T12:05:10.403Z"
   }
 ]
