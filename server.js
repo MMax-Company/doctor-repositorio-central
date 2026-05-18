@@ -346,7 +346,7 @@ function validarTelefone(telefone) {
 function validarInputTriagem(paciente, triagem) {
   const erros = []
 
-  if (!paciente.nome || paciente.nome.trim().length < 3) {
+  if (!paciente.nome || String(paciente.nome || '').trim().length < 3) {
     erros.push('Nome do paciente é obrigatório (mínimo 3 caracteres)')
   }
 
@@ -362,7 +362,7 @@ function validarInputTriagem(paciente, triagem) {
     erros.push('Campo triagem.doencas é obrigatório')
   }
 
-  if (!triagem.medicacao_em_uso || triagem.medicacao_em_uso.trim().length === 0) {
+  if (!triagem.medicacao_em_uso || String(triagem.medicacao_em_uso || '').trim().length === 0) {
     erros.push('Campo triagem.medicacao_em_uso é obrigatório')
   }
 
@@ -371,6 +371,35 @@ function validarInputTriagem(paciente, triagem) {
   }
 
   return erros
+}
+
+// Sanitização simples para logs: remove valores que parecem secrets
+function sanitizeForLog(obj) {
+  try {
+    const copy = JSON.parse(JSON.stringify(obj))
+    const secretKeys = [/key/i, /token/i, /secret/i, /senha/i, /password/i, /api[_-]?key/i, /authorization/i]
+
+    function walk(o) {
+      if (!o || typeof o !== 'object') return
+      for (const k of Object.keys(o)) {
+        try {
+          const val = o[k]
+          if (val && typeof val === 'object') {
+            walk(val)
+          } else {
+            if (secretKeys.some(rx => rx.test(k))) {
+              o[k] = '***REDACTED***'
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    walk(copy)
+    return copy
+  } catch (e) {
+    return { error: 'failed to sanitize' }
+  }
 }
 
 // ========================
@@ -453,16 +482,41 @@ function normalizarDoencas(doencas) {
 
 app.get('/healthz', async (req, res) => {
   try {
-    // Verificar conexão com banco
-    const dbOk = await db.healthCheck()
-    res.json({
-      status: 'online',
-      database: dbOk ? 'connected' : 'disconnected',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime()
-    })
+    // 1) Verifica que o backend (processo) está up
+    const timestamp = new Date().toISOString()
+    const uptime = process.uptime()
+
+    // 2) Delegar checagem de persistência ao módulo db (Supabase + JSON)
+    const dbStatus = await db.healthCheck()
+    // dbStatus esperado: { supabase: boolean, json: boolean, status: 'connected'|'disconnected' }
+
+    const hasSupabaseConfigured = !!(process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY))
+
+    const payload = {
+      status: dbStatus && (dbStatus.supabase || dbStatus.json) ? 'online' : 'degraded',
+      backend: {
+        alive: true,
+        timestamp,
+        uptime_seconds: Math.floor(uptime),
+        node: process.version
+      },
+      database: {
+        supabase_configured: hasSupabaseConfigured,
+        supabase_connected: !!(dbStatus && dbStatus.supabase),
+        json_fallback_available: !!(dbStatus && dbStatus.json),
+        status: dbStatus && dbStatus.status ? dbStatus.status : (hasSupabaseConfigured ? 'unknown' : 'json-only')
+      }
+    }
+
+    // Se nada conectado, retornar 503
+    if (!dbStatus || (!dbStatus.supabase && !dbStatus.json)) {
+      return res.status(503).json({ ...payload, error: 'Nenhuma fonte de dados disponível' })
+    }
+
+    res.status(200).json(payload)
   } catch (e) {
-    res.status(503).json({ status: 'error', error: e.message })
+    console.error('❌ Health check error:', e && e.message ? e.message : e)
+    res.status(503).json({ status: 'error', error: e && e.message ? e.message : String(e) })
   }
 })
 
@@ -500,7 +554,34 @@ app.post('/login', (req, res) => {
 // ========================
 app.post('/api/webhook/triagem', async (req, res) => {
   try {
-    const { paciente = {}, triagem = {} } = req.body
+    const body = req.body || {}
+
+    // Suporta formato novo: { paciente: {...}, triagem: {...} }
+    // e formato antigo (retrocompatível): { nome, telefone, cpf, doencas, medicacao_em_uso, ... }
+    let paciente = body.paciente || {}
+    let triagem = body.triagem || {}
+
+    // Detecta payload legado e mapeia para os objetos esperados
+    if (!body.paciente && (body.nome || body.telefone || body.cpf || body.doencas || body.medicacao_em_uso)) {
+      paciente = {
+        nome: body.nome,
+        telefone: body.telefone,
+        cpf: body.cpf,
+        email: body.email,
+        data_nascimento: body.data_nascimento
+      }
+
+      triagem = {
+        doencas: body.doencas || body.condicao,
+        medicacao_em_uso: body.medicacao_em_uso || body.medicacao || '',
+        posologia_atual: body.posologia_atual || null,
+        tempo_doenca: body.tempo_doenca || body.tempo_doenca_dias || null,
+        receita_vencida_dias: body.receita_vencida_dias || null,
+        ultima_consulta: body.ultima_consulta || null,
+        comorbidades: body.comorbidades || null,
+        alergias: body.alergias || null
+      }
+    }
 
     const errosValidacao = validarInputTriagem(paciente, triagem)
     if (errosValidacao.length > 0) {
@@ -553,7 +634,52 @@ app.post('/api/webhook/triagem', async (req, res) => {
       criadoEm: new Date().toISOString()
     }
 
-    await db.salvarAtendimento(atendimento)
+    // Logs temporários detalhados (sanitizados) — não expor secrets
+    try {
+      console.log('📥 [triagem] req.body:', sanitizeForLog(body))
+      console.log('📥 [triagem] paciente (mapeado):', sanitizeForLog(paciente))
+      console.log('📥 [triagem] triagem (mapeado):', sanitizeForLog(triagem))
+
+      // Construir payload que será enviado ao Supabase (mesma estrutura usada em db-supabase-hybrid)
+      const supabasePayload = {
+        id: atendimento.id,
+        paciente_nome: atendimento.paciente?.nome,
+        paciente_telefone: atendimento.paciente?.telefone,
+        paciente_cpf: atendimento.paciente?.cpf,
+        paciente_email: atendimento.paciente?.email,
+        paciente_data_nascimento: atendimento.paciente?.data_nascimento,
+        dados_clinicos: atendimento.dados_clinicos,
+        status: atendimento.status,
+        elegivel: atendimento.elegivel,
+        pagamento: atendimento.pagamento,
+        criado_em: atendimento.criadoEm
+      }
+
+      console.log('📤 [triagem] payload enviado ao Supabase (sanitizado):', sanitizeForLog(supabasePayload))
+    } catch (logErr) {
+      console.warn('⚠️ Erro ao gerar logs de triagem:', logErr.message)
+    }
+
+    // Persistir (Supabase + JSON fallback)
+    let salvarResult
+    try {
+      salvarResult = await db.salvarAtendimento(atendimento)
+      console.log(`✅ salvarAtendimento retornou:`, salvarResult)
+      if (!salvarResult || !salvarResult.json) {
+        console.warn(`⚠️ salvarAtendimento não confirmou persistência em JSON para id=${id}`)
+      }
+      if (!salvarResult.supabase) {
+        console.warn(`⚠️ Supabase não salvou atendimento id=${id}. Verifique o cliente Supabase e a tabela 'atendimentos'.`)
+      }
+    } catch (e) {
+      console.error('❌ Exceção ao salvar atendimento:', e && e.message ? e.message : e)
+      console.error('❌ Detalhes (sanitizados):', {
+        body: sanitizeForLog(body),
+        paciente: sanitizeForLog(paciente),
+        triagem: sanitizeForLog(triagem)
+      })
+      return res.status(500).json({ error: 'Erro ao salvar atendimento', detalhes: e && e.message ? e.message : String(e) })
+    }
 
     if (elegivel) {
       const url = `${BASE_URL}/api/payment/${id}`
@@ -569,7 +695,11 @@ app.post('/api/webhook/triagem', async (req, res) => {
       id,
       elegivel,
       atendimentoId: id,
-      mensagem: elegivel ? 'Elegível. Link de pagamento enviado por WhatsApp' : 'Não elegível'
+      mensagem: elegivel ? 'Elegível. Link de pagamento enviado por WhatsApp' : 'Não elegível',
+      persisted: {
+        supabase: salvarResult && salvarResult.supabase === true,
+        json: salvarResult && salvarResult.json === true
+      }
     })
   } catch (e) {
     console.error('❌ Erro em triagem:', e.message)
@@ -1071,7 +1201,7 @@ app.put('/api/decisao/:id/revisar', auth, async (req, res) => {
     if (aprovacao) {
       const medicamentoFinal = medicamento || dadosClinicos.medicacao_em_uso
 
-      if (!medicamentoFinal || medicamentoFinal.trim().length === 0) {
+      if (!medicamentoFinal || String(medicamentoFinal || '').trim().length === 0) {
         return res.status(400).json({ error: 'Medicação obrigatória para aprovação na revisão' })
       }
 
@@ -1451,7 +1581,7 @@ app.get('/api/memed/status', auth, async (req, res) => {
       }],
       observacoes: receita.observacoes || '',
       medico: receita.medico || {
-        nome: process.env.MEDICO_NOME ? `Dr. ${process.env.MEDICO_NOME} ${process.env.MEDICO_SOBRENOME || ''}`.trim() : 'Dr. Plantonista',
+        nome: String(process.env.MEDICO_NOME ? `Dr. ${process.env.MEDICO_NOME} ${process.env.MEDICO_SOBRENOME || ''}` : 'Dr. Plantonista').trim(),
         registro: process.env.MEDICO_NUMERO ? `${process.env.MEDICO_CONSELHO || 'CRM'} ${process.env.MEDICO_NUMERO}` : 'CRM 12345',
         especialidade: 'Clínica Geral'
       },
