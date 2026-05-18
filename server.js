@@ -106,8 +106,9 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
 
   try {
     const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || '')
     const event = stripe.webhooks.constructEvent(
-      req.body,
+      rawBody,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     )
