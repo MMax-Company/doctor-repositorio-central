@@ -1,0 +1,19 @@
+{
+  "paciente": {
+    "nome": "João da Silva",
+    "telefone": "+5511999999999",
+    "cpf": "12345678909",
+    "email": "joao.silva@example.com",
+    "data_nascimento": "1980-01-01"
+  },
+  "triagem": {
+    "doencas": "Hipertensão",
+    "medicacao_em_uso": "Losartana 50mg",
+    "posologia_atual": "1 comprimido ao dia",
+    "tempo_doenca": "365",
+    "receita_vencida_dias": null,
+    "ultima_consulta": null,
+    "comorbidades": null,
+    "alergias": null
+  }
+}
