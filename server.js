@@ -1713,6 +1713,128 @@ app.get('/api/receita/:id/pdf', async (req, res) => {
   }
 })
 
+// Emitir PDF da receita, salvar no Supabase Storage e associar ao atendimento
+app.post('/api/receita/:id/emitir', auth, async (req, res) => {
+  try {
+    const atendimentoId = req.params.id
+    const at = await db.buscarAtendimentoPorId(atendimentoId)
+    if (!at) return res.status(404).json({ error: 'Atendimento não encontrado' })
+
+    const dadosClinicos = at.dados_clinicos || at.triagem || {}
+    const decisao = at.decisao || {}
+
+    const receita = {
+      id: atendimentoId,
+      numero: `REC-${atendimentoId.substring(0, 8)}-${Date.now()}`,
+      atendimentoId: atendimentoId,
+      paciente: {
+        nome: safeDecrypt(at.paciente_nome),
+        cpf: safeDecrypt(at.paciente_cpf)
+      },
+      medicamentos: [{
+        nome: decisao.medicamento_prescrito || dadosClinicos.medicacao_em_uso || 'Medicamento não informado',
+        posologia: decisao.posologia || dadosClinicos.posologia_atual || 'Uso conforme orientação médica',
+        quantidade: 30,
+        duracao: '30 dias'
+      }],
+      observacoes: decisao.observacao || '',
+      medico: {
+        nome: String(process.env.MEDICO_NOME ? `Dr. ${process.env.MEDICO_NOME} ${process.env.MEDICO_SOBRENOME || ''}` : 'Dr. Plantonista').trim(),
+        registro: process.env.MEDICO_NUMERO ? `${process.env.MEDICO_CONSELHO || 'CRM'} ${process.env.MEDICO_NUMERO}` : 'CRM 12345',
+        especialidade: 'Clínica Geral'
+      },
+      data_emissao: new Date().toISOString(),
+      data_validade: new Date(Date.now() + (parseInt(process.env.RECEITA_VALIDADE_DIAS) || 90) * 24 * 60 * 60 * 1000).toISOString(),
+      assinatura_digital: crypto.createHash('sha256').update(atendimentoId + process.env.JWT_SECRET + Date.now()).digest('hex'),
+      status: 'ATIVA'
+    }
+
+    // Gerar PDF em memória
+    const pdfBuffer = await new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ margin: 50, size: 'A4' })
+        const chunks = []
+        doc.on('data', c => chunks.push(c))
+        doc.on('end', () => resolve(Buffer.concat(chunks)))
+        doc.on('error', reject)
+
+        doc.fontSize(20).fillColor('#1a6b8a').text('DOCTOR PRESCREVE', { align: 'center' })
+          .fontSize(12).fillColor('#666').text('Telemedicina com Responsabilidade', { align: 'center' }).moveDown()
+
+        doc.fontSize(16).fillColor('#000').text('RECEITA MÉDICA', { align: 'center' }).moveDown()
+
+        doc.fontSize(10)
+          .text(`Número: ${receita.numero}`, { continued: true })
+          .text(`                    Emissão: ${new Date(receita.data_emissao).toLocaleDateString('pt-BR')}`)
+          .text(`Validade: ${new Date(receita.data_validade).toLocaleDateString('pt-BR')}`)
+          .moveDown()
+
+        doc.fontSize(12).fillColor('#1a6b8a').text('IDENTIFICAÇÃO DO PACIENTE', { underline: true }).moveDown(0.5)
+        doc.fontSize(10).fillColor('#000')
+          .text(`Nome: ${receita.paciente.nome}`)
+          .text(`CPF: ${receita.paciente.cpf || 'Não informado'}`)
+          .moveDown()
+
+        doc.fontSize(12).fillColor('#1a6b8a').text('MEDICAMENTOS PRESCRITOS', { underline: true }).moveDown(0.5)
+
+        receita.medicamentos.forEach((med, index) => {
+          doc.fontSize(10).fillColor('#000')
+            .text(`${index + 1}. ${med.nome.toUpperCase()}`)
+            .text(`   Posologia: ${med.posologia}`)
+            .text(`   Quantidade: ${med.quantidade} unidades`)
+            .text(`   Duração: ${med.duracao}`)
+            .moveDown(0.5)
+        })
+
+        if (receita.observacoes) {
+          doc.moveDown().fontSize(12).fillColor('#1a6b8a').text('OBSERVAÇÕES', { underline: true }).moveDown(0.5)
+            .fontSize(10).fillColor('#000').text(receita.observacoes).moveDown()
+        }
+
+        doc.moveDown().fontSize(12).fillColor('#1a6b8a').text('IDENTIFICAÇÃO DO MÉDICO', { underline: true }).moveDown(0.5)
+        doc.fontSize(10).fillColor('#000')
+          .text(`Nome: ${receita.medico.nome}`)
+          .text(`Registro: ${receita.medico.registro}`)
+          .text(`Especialidade: ${receita.medico.especialidade}`)
+
+        doc.moveDown().fontSize(8).fillColor('#999')
+          .text(`Assinatura Digital: ${receita.assinatura_digital.substring(0, 20)}...`, { align: 'center' })
+
+        doc.end()
+      } catch (err) {
+        reject(err)
+      }
+    })
+
+    // Salvar no storage via módulo db
+    const meta = await db.salvarReceitaArquivo(atendimentoId, pdfBuffer, 'application/pdf')
+
+    // Atualizar status do atendimento
+    await db.atualizarStatus(atendimentoId, ESTADOS_FLUXO.RECEITA_EMITIDA, {
+      memed_pdf_url: meta.url,
+      memed_prescription_id: meta.id,
+      receita_emitida_em: meta.created_at
+    })
+
+    // Notificar paciente
+    try {
+      const telefone = safeDecrypt(at.paciente_telefone)
+      const nome = safeDecrypt(at.paciente_nome)
+      if (telefone && meta.url) {
+        await enviarWhatsAppOficial(telefone, `✅ Olá ${nome}, sua receita foi gerada!
+📄 Acesse: ${meta.url}`)
+      }
+    } catch (e) {
+      console.warn('⚠️ Erro ao notificar paciente sobre receita:', e.message)
+    }
+
+    res.json({ success: true, receita: meta })
+  } catch (e) {
+    console.error('❌ Erro ao emitir receita e salvar no storage:', e.message)
+    res.status(500).json({ error: 'Erro ao emitir receita' })
+  }
+})
+
 // Enviar receita por WhatsApp
 app.post('/api/receita/:id/enviar-whatsapp', auth, async (req, res) => {
   try {

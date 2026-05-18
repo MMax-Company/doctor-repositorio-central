@@ -6,6 +6,7 @@ const { createClient } = require('@supabase/supabase-js')
 const fs = require('fs')
 const path = require('path')
 const ws = require('ws')
+const { v4: uuidv4 } = require('uuid')
 
 // ========================
 // CONFIGURAÇÃO
@@ -363,8 +364,10 @@ async function salvarReceita(receita) {
         data_validade: receita.data_validade,
         assinatura_digital: receita.assinatura_digital,
         status: receita.status,
-        memed_prescription_id: receita.memed_prescription_id,
-        created_at: new Date().toISOString()
+          memed_prescription_id: receita.memed_prescription_id,
+          memed_pdf_url: receita.memed_pdf_url,
+          storage_path: receita.storage_path,
+          created_at: new Date().toISOString()
       }, { onConflict: 'id' })
     } catch (e) {}
   }
@@ -609,6 +612,7 @@ module.exports = {
   
   // Receitas
   salvarReceita,
+  salvarReceitaArquivo,
   buscarReceitaPorId,
   listarReceitasPorAtendimento,
   atualizarStatusReceita,
@@ -626,4 +630,79 @@ module.exports = {
   healthCheck,
   initDB,
   closeConnection
+}
+
+// Salvar arquivo de receita no Supabase Storage (ou local fallback)
+async function salvarReceitaArquivo(atendimentoId, buffer, contentType = 'application/pdf') {
+  const id = uuidv4()
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const filename = `receita-${id}.pdf`
+  const storagePath = `receitas/${year}/${month}/${filename}`
+
+  let publicUrl = null
+
+  if (supabase) {
+    try {
+      const { error: uploadError } = await supabase.storage.from('receitas').upload(storagePath, buffer, { contentType, upsert: false })
+      if (uploadError) {
+        console.error('⚠️ Supabase storage upload error:', uploadError.message)
+      } else {
+        try {
+          const { data } = supabase.storage.from('receitas').getPublicUrl(storagePath)
+          publicUrl = data && data.publicUrl ? data.publicUrl : null
+        } catch (e) {
+          console.error('⚠️ Erro ao obter publicUrl:', e.message)
+        }
+      }
+    } catch (e) {
+      console.error('⚠️ Supabase storage exception:', e.message)
+    }
+  } else {
+    // fallback local
+    try {
+      const dir = path.join(DB_DIR, 'receitas', String(year), month)
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+      const filePath = path.join(dir, filename)
+      fs.writeFileSync(filePath, buffer)
+      publicUrl = `file://${filePath}`
+      console.log(`✅ Receita salva localmente: ${filePath}`)
+    } catch (e) {
+      console.error('❌ Erro ao salvar receita localmente:', e.message)
+    }
+  }
+
+  const receitaMeta = {
+    id,
+    atendimentoId,
+    url: publicUrl,
+    storage_path: storagePath,
+    created_at: now.toISOString()
+  }
+
+  // Persistir metadados (JSON sempre, Supabase se disponível)
+  try {
+    const receitas = readJSON('receitas.json')
+    receitas.push(receitaMeta)
+    writeJSON('receitas.json', receitas)
+  } catch (e) {
+    console.error('❌ Erro ao persistir metadados de receita localmente:', e.message)
+  }
+
+  if (supabase) {
+    try {
+      await supabase.from('receitas').upsert({
+        id: receitaMeta.id,
+        atendimento_id: atendimentoId,
+        memed_pdf_url: receitaMeta.url,
+        storage_path: receitaMeta.storage_path,
+        created_at: receitaMeta.created_at
+      }, { onConflict: 'id' })
+    } catch (e) {
+      console.error('⚠️ Erro ao persistir metadados de receita no Supabase:', e.message)
+    }
+  }
+
+  return receitaMeta
 }
