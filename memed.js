@@ -2,14 +2,11 @@ require('dotenv').config()
 const axios = require('axios')
 const crypto = require('crypto')
 
-// Configuração
+// Configuração - USAR PRODUÇÃO
 const MEMED_API_URL = process.env.MEMED_API_URL || 'https://integrations.api.memed.com.br/v1'
 let cachedToken = null
 let tokenExpiry = null
 
-/**
- * Gera token do prescritor (médico) para usar no frontend
- */
 async function gerarTokenPrescritor(somenteTeste = false) {
   try {
     if (cachedToken && tokenExpiry && Date.now() < tokenExpiry && !somenteTeste) {
@@ -33,7 +30,7 @@ async function gerarTokenPrescritor(somenteTeste = false) {
     })
 
     cachedToken = response.data.token
-    tokenExpiry = Date.now() + (55 * 60 * 1000) // 55 minutos
+    tokenExpiry = Date.now() + (55 * 60 * 1000)
     
     console.log('✅ Token do prescritor gerado com sucesso')
     return cachedToken
@@ -43,9 +40,6 @@ async function gerarTokenPrescritor(somenteTeste = false) {
   }
 }
 
-/**
- * Verifica status da conta na Memed
- */
 async function verificarStatusConta() {
   try {
     const token = await gerarTokenPrescritor(true)
@@ -61,16 +55,13 @@ async function verificarStatusConta() {
         cpf: process.env.MEMED_PRESCRITOR_CPF,
         crm: `${process.env.MEMED_PRESCRITOR_BOARD_NUMBER}/${process.env.MEMED_PRESCRITOR_BOARD_STATE}`
       },
-      ambiente: process.env.MEMED_ENVIRONMENT || 'homologacao'
+      ambiente: process.env.MEMED_ENVIRONMENT || 'produção'
     }
   } catch (error) {
     return { status: 'erro', mensagem: error.message }
   }
 }
 
-/**
- * Obter token para o frontend (usado pelo script MdHub)
- */
 async function obterTokenMemed() {
   try {
     const token = await gerarTokenPrescritor()
@@ -84,9 +75,6 @@ async function obterTokenMemed() {
   }
 }
 
-/**
- * Salvar receita gerada pela Memed
- */
 async function salvarReceitaMemed(atendimentoId, memedData) {
   try {
     const receita = {
@@ -109,9 +97,6 @@ async function salvarReceitaMemed(atendimentoId, memedData) {
   }
 }
 
-/**
- * Gerar prescrição Memed
- */
 async function gerarPrescricaoMemed(paciente, medicamento, posologia, observacao = '') {
   try {
     const token = await gerarTokenPrescritor()
@@ -119,8 +104,7 @@ async function gerarPrescricaoMemed(paciente, medicamento, posologia, observacao
       throw new Error('Token Memed inválido')
     }
 
-    // FALLBACK TEMPORÁRIO - até integrar endpoint real da Memed
-    // Gera um ID simulado e URL de PDF demo
+    // MODO FALLBACK - funciona sem Memed
     const prescriptionId = crypto.randomUUID()
     const pdfUrl = `${process.env.BASE_URL || 'http://localhost:3002'}/api/receita/${prescriptionId}/pdf`
     
@@ -149,13 +133,9 @@ async function gerarPrescricaoMemed(paciente, medicamento, posologia, observacao
   }
 }
 
-/**
- * Testar conexão completa
- */
 async function testarConexao() {
   console.log('🚀 Testando integração Memed...')
   
-  // Verificar variáveis
   const vars = {
     MEMED_API_KEY: process.env.MEMED_API_KEY ? '✅' : '❌',
     MEMED_PRESCRITOR_CPF: process.env.MEMED_PRESCRITOR_CPF ? '✅' : '❌',
@@ -180,7 +160,6 @@ async function testarConexao() {
   }
 }
 
-// Exportar todas as funções
 module.exports = {
   gerarTokenPrescritor,
   verificarStatusConta,

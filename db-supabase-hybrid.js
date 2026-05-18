@@ -15,15 +15,21 @@ if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true })
 
 // Supabase (se configurado)
 let supabase = null
-if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
-  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || null
+
+if (process.env.SUPABASE_URL && supabaseServiceKey) {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_KEY) {
+    console.warn('⚠️ SUPABASE_SERVICE_KEY detectado. Use SUPABASE_SERVICE_ROLE_KEY no backend para garantir a chave de service role.')
+  }
+
+  supabase = createClient(process.env.SUPABASE_URL, supabaseServiceKey, {
     realtime: {
       transport: ws
     }
   })
   console.log('✅ Supabase cliente inicializado')
 } else {
-  console.warn('⚠️ SUPABASE_URL ou SUPABASE_SERVICE_KEY não configurados. Usando apenas JSON.')
+  console.warn('⚠️ SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados. Usando apenas JSON.')
 }
 
 // ========================
