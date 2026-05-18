@@ -416,8 +416,6 @@
     const id = document.getElementById('drawerAtendimentoId').value;
     const observacao = document.getElementById('drawerObservacao').value;
     const medicamento = document.getElementById('drawerMedicacao').innerText;
-    const posologia = prompt('Posologia:', '1 comprimido ao dia');
-    if (!posologia) return;
     
     showToast('🔄 Gerando receita...', 'warning');
     
@@ -425,7 +423,7 @@
       const res = await fetch('/api/memed/prescricao', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ atendimentoId: id, medicamento, posologia, observacao })
+        body: JSON.stringify({ atendimentoId: id, medicamento, observacao })
       });
       const data = await res.json();
       
@@ -448,8 +446,7 @@
   document.getElementById('drawerBtnRecusar').onclick = async () => {
     const id = document.getElementById('drawerAtendimentoId').value;
     const observacao = document.getElementById('drawerObservacao').value;
-    const motivo = prompt('Motivo da recusa:', 'Não elegível para renovação remota');
-    if (!motivo) return;
+    const motivo = observacao || 'Não elegível para renovação remota';
     
     try {
       const res = await fetch('/api/decisao/' + id, {
@@ -509,7 +506,7 @@
   
   function verMotivoRecusa(id) {
     const at = atendimentosData.find(a => a.id === id);
-    alert('Motivo da recusa:\n\n' + (at?.decisao?.observacao || 'Não informado'));
+    showToast(at?.decisao?.observacao || 'Motivo da recusa não informado', 'warning');
   }
 
   // Inicializar Memed

@@ -901,7 +901,7 @@ app.get('/success', (req, res) => {
         <p>Seu atendimento foi registrado com sucesso.</p>
         <p>📱 Você receberá um WhatsApp com o resultado em até <strong>24 horas úteis</strong>.</p>
         <p>🔒 Transação segura via Stripe</p>
-        <a href="/">🏠 Voltar para Home</a>
+        <a href="/painel-medico">Ir para Painel Médico</a>
     </div>
 </body>
 </html>`)
@@ -1550,8 +1550,12 @@ app.get('/api/memed/status', auth, async (req, res) => {
       paciente_telefone: safeDecrypt(at.paciente_telefone),
       paciente_cpf: safeDecrypt(at.paciente_cpf)
     };
+    const dadosClinicos = at.dados_clinicos || at.triagem || {};
+    const decisao = at.decisao || {};
+    const medicamentoFinal = medicamento || decisao.medicamento_prescrito || dadosClinicos.medicacao_em_uso;
+    const posologiaFinal = posologia || decisao.posologia || dadosClinicos.posologia_atual || 'Uso conforme orientação médica';
     
-    const resultado = await memed.gerarPrescricaoMemed(dadosPaciente, medicamento, posologia, observacao);
+    const resultado = await memed.gerarPrescricaoMemed(dadosPaciente, medicamentoFinal, posologiaFinal, observacao);
      console.log('MEMED OBJ:', memed)
      console.log(
     'FUNÇÃO:',
@@ -1572,6 +1576,32 @@ app.get('/api/memed/status', auth, async (req, res) => {
       
       res.json({ success: true, pdfUrl: resultado.pdfUrl, prescriptionId: resultado.prescriptionId });
     } else {
+      await db.salvarReceita({
+        id: atendimentoId,
+        numero: `REC-${atendimentoId.substring(0, 8)}-${Date.now()}`,
+        atendimentoId,
+        paciente: {
+          nome: dadosPaciente.paciente_nome,
+          cpf: dadosPaciente.paciente_cpf
+        },
+        medicamentos: [{
+          nome: medicamentoFinal || 'Medicamento não informado',
+          posologia: posologiaFinal,
+          quantidade: 30,
+          duracao: '30 dias'
+        }],
+        observacoes: observacao || '',
+        medico: {
+          nome: String(process.env.MEDICO_NOME ? `Dr. ${process.env.MEDICO_NOME} ${process.env.MEDICO_SOBRENOME || ''}` : 'Dr. Plantonista').trim(),
+          registro: process.env.MEDICO_NUMERO ? `${process.env.MEDICO_CONSELHO || 'CRM'} ${process.env.MEDICO_NUMERO}` : 'CRM 12345',
+          especialidade: 'Clínica Geral'
+        },
+        data_emissao: new Date().toISOString(),
+        data_validade: new Date(Date.now() + (parseInt(process.env.RECEITA_VALIDADE_DIAS) || 90) * 24 * 60 * 60 * 1000).toISOString(),
+        assinatura_digital: crypto.createHash('sha256').update(atendimentoId + process.env.JWT_SECRET + Date.now()).digest('hex'),
+        status: 'ATIVA',
+        created_at: new Date().toISOString()
+      });
       const pdfUrl = `${BASE_URL}/api/receita/${atendimentoId}/pdf`;
       res.json({ success: true, pdfUrl: pdfUrl, fallback: true, warning: resultado.error });
     }
@@ -1856,6 +1886,13 @@ app.post('/api/receita/:id/emitir', auth, async (req, res) => {
 
     // Salvar no storage via módulo db
     const meta = await db.salvarReceitaArquivo(atendimentoId, pdfBuffer, 'application/pdf')
+    await db.salvarReceita({
+      ...receita,
+      memed_pdf_url: meta.url,
+      storage_path: meta.storage_path,
+      memed_prescription_id: meta.id,
+      created_at: meta.created_at
+    })
 
     // Atualizar status do atendimento
     await db.atualizarStatus(atendimentoId, ESTADOS_FLUXO.RECEITA_EMITIDA, {
@@ -1876,7 +1913,7 @@ app.post('/api/receita/:id/emitir', auth, async (req, res) => {
       console.warn('⚠️ Erro ao notificar paciente sobre receita:', e.message)
     }
 
-    res.json({ success: true, receita: meta })
+    res.json({ success: true, receita: { ...meta, id: atendimentoId }, url: `${BASE_URL}/api/receita/${atendimentoId}/pdf` })
   } catch (e) {
     console.error('❌ Erro ao emitir receita e salvar no storage:', e.message)
     res.status(500).json({ error: 'Erro ao emitir receita' })
