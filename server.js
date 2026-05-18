@@ -1886,9 +1886,10 @@ app.post('/api/receita/:id/emitir', auth, async (req, res) => {
 
     // Salvar no storage via módulo db
     const meta = await db.salvarReceitaArquivo(atendimentoId, pdfBuffer, 'application/pdf')
+    const pdfUrl = meta.pdf_url || `${BASE_URL}/api/receita/${atendimentoId}/pdf`
     await db.salvarReceita({
       ...receita,
-      memed_pdf_url: meta.url,
+      pdf_url: pdfUrl,
       storage_path: meta.storage_path,
       memed_prescription_id: meta.id,
       created_at: meta.created_at
@@ -1896,7 +1897,7 @@ app.post('/api/receita/:id/emitir', auth, async (req, res) => {
 
     // Atualizar status do atendimento
     await db.atualizarStatus(atendimentoId, ESTADOS_FLUXO.RECEITA_EMITIDA, {
-      memed_pdf_url: meta.url,
+      memed_pdf_url: pdfUrl,
       memed_prescription_id: meta.id,
       receita_emitida_em: meta.created_at
     })
@@ -1905,15 +1906,15 @@ app.post('/api/receita/:id/emitir', auth, async (req, res) => {
     try {
       const telefone = safeDecrypt(at.paciente_telefone)
       const nome = safeDecrypt(at.paciente_nome)
-      if (telefone && meta.url) {
+      if (telefone && pdfUrl) {
         await enviarWhatsAppOficial(telefone, `✅ Olá ${nome}, sua receita foi gerada!
-📄 Acesse: ${meta.url}`)
+📄 Acesse: ${pdfUrl}`)
       }
     } catch (e) {
       console.warn('⚠️ Erro ao notificar paciente sobre receita:', e.message)
     }
 
-    res.json({ success: true, receita: { ...meta, id: atendimentoId }, url: `${BASE_URL}/api/receita/${atendimentoId}/pdf` })
+    res.json({ success: true, receita: { ...meta, id: atendimentoId, pdf_url: pdfUrl }, url: pdfUrl })
   } catch (e) {
     console.error('❌ Erro ao emitir receita e salvar no storage:', e.message)
     res.status(500).json({ error: 'Erro ao emitir receita' })

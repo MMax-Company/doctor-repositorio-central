@@ -337,14 +337,20 @@ async function getEstatisticas() {
 // 3. RECEITAS
 // ========================
 async function salvarReceita(receita) {
+  const normalized = {
+    ...receita,
+    atendimentoId: receita.atendimentoId || receita.atendimento_id,
+    pdf_url: receita.pdf_url || receita.pdfUrl || receita.url || receita.memed_pdf_url || null
+  }
+
   // Salvar no JSON
   const receitas = readJSON('receitas.json')
-  const existingIndex = receitas.findIndex(r => r.id === receita.id)
+  const existingIndex = receitas.findIndex(r => r.id === normalized.id)
   
   if (existingIndex >= 0) {
-    receitas[existingIndex] = { ...receitas[existingIndex], ...receita }
+    receitas[existingIndex] = { ...receitas[existingIndex], ...normalized }
   } else {
-    receitas.push(receita)
+    receitas.push(normalized)
   }
   
   writeJSON('receitas.json', receitas)
@@ -353,29 +359,36 @@ async function salvarReceita(receita) {
   if (supabase) {
     try {
       await supabase.from('receitas').upsert({
-        id: receita.id,
-        atendimento_id: receita.atendimentoId,
-        numero: receita.numero,
-        paciente: receita.paciente,
-        medicamentos: receita.medicamentos,
-        observacoes: receita.observacoes,
-        medico: receita.medico,
-        data_emissao: receita.data_emissao,
-        data_validade: receita.data_validade,
-        assinatura_digital: receita.assinatura_digital,
-        status: receita.status,
-          memed_prescription_id: receita.memed_prescription_id,
-          memed_pdf_url: receita.memed_pdf_url,
-          storage_path: receita.storage_path,
-          created_at: new Date().toISOString()
+        id: normalized.id,
+        atendimento_id: normalized.atendimentoId,
+        numero: normalized.numero,
+        paciente: normalized.paciente,
+        medicamentos: normalized.medicamentos,
+        observacoes: normalized.observacoes,
+        medico: normalized.medico,
+        data_emissao: normalized.data_emissao,
+        data_validade: normalized.data_validade,
+        assinatura_digital: normalized.assinatura_digital,
+        status: normalized.status,
+        memed_prescription_id: normalized.memed_prescription_id,
+        pdf_url: normalized.pdf_url,
+        storage_path: normalized.storage_path,
+        created_at: normalized.created_at || new Date().toISOString()
       }, { onConflict: 'id' })
-    } catch (e) {}
+    } catch (e) {
+      console.error('⚠️ Erro ao salvar receita no Supabase:', e.message)
+    }
   }
   
-  return receita
+  return normalized
 }
 
 async function buscarReceitaPorId(id) {
+  const receitas = readJSON('receitas.json')
+  const localReceita = receitas.find(r => r.id === id)
+    || receitas.filter(r => (r.atendimentoId || r.atendimento_id) === id).slice(-1)[0]
+    || null
+
   // Tentar Supabase primeiro
   if (supabase) {
     try {
@@ -385,13 +398,24 @@ async function buscarReceitaPorId(id) {
         .eq('id', id)
         .single()
       
-      if (!error && data) return data
+      if (!error && data) return localReceita ? { ...data, ...localReceita } : data
+    } catch (e) {}
+
+    try {
+      const { data, error } = await supabase
+        .from('receitas')
+        .select('*')
+        .eq('atendimento_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      
+      if (!error && data) return localReceita ? { ...data, ...localReceita } : data
     } catch (e) {}
   }
   
   // Fallback JSON
-  const receitas = readJSON('receitas.json')
-  return receitas.find(r => r.id === id) || null
+  return localReceita
 }
 
 async function listarReceitasPorAtendimento(atendimentoId) {
@@ -410,7 +434,7 @@ async function listarReceitasPorAtendimento(atendimentoId) {
   
   // Fallback JSON
   const receitas = readJSON('receitas.json')
-  return receitas.filter(r => r.atendimentoId === atendimentoId)
+  return receitas.filter(r => (r.atendimentoId || r.atendimento_id) === atendimentoId)
 }
 
 async function atualizarStatusReceita(id, status, motivo = null) {
@@ -635,11 +659,11 @@ module.exports = {
 
 // Salvar arquivo de receita no Supabase Storage (ou local fallback)
 async function salvarReceitaArquivo(atendimentoId, buffer, contentType = 'application/pdf') {
-  const id = uuidv4()
+  const id = atendimentoId
   const now = new Date()
   const year = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
-  const filename = `receita-${id}.pdf`
+  const filename = `receita-${atendimentoId}.pdf`
   const storagePath = `receitas/${year}/${month}/${filename}`
 
   let publicUrl = null
@@ -677,6 +701,8 @@ async function salvarReceitaArquivo(atendimentoId, buffer, contentType = 'applic
   const receitaMeta = {
     id,
     atendimentoId,
+    atendimento_id: atendimentoId,
+    pdf_url: publicUrl,
     url: publicUrl,
     storage_path: storagePath,
     created_at: now.toISOString()
@@ -685,7 +711,12 @@ async function salvarReceitaArquivo(atendimentoId, buffer, contentType = 'applic
   // Persistir metadados (JSON sempre, Supabase se disponível)
   try {
     const receitas = readJSON('receitas.json')
-    receitas.push(receitaMeta)
+    const index = receitas.findIndex(r => r.id === receitaMeta.id)
+    if (index >= 0) {
+      receitas[index] = { ...receitas[index], ...receitaMeta }
+    } else {
+      receitas.push(receitaMeta)
+    }
     writeJSON('receitas.json', receitas)
   } catch (e) {
     console.error('❌ Erro ao persistir metadados de receita localmente:', e.message)
@@ -696,7 +727,7 @@ async function salvarReceitaArquivo(atendimentoId, buffer, contentType = 'applic
       await supabase.from('receitas').upsert({
         id: receitaMeta.id,
         atendimento_id: atendimentoId,
-        memed_pdf_url: receitaMeta.url,
+        pdf_url: receitaMeta.pdf_url,
         storage_path: receitaMeta.storage_path,
         created_at: receitaMeta.created_at
       }, { onConflict: 'id' })
@@ -722,8 +753,8 @@ async function gerarSignedUrl(storagePath, expiresSeconds = 3600) {
 
   // fallback: tentar obter URL público ou file:// do JSON
   const receitas = readJSON('receitas.json')
-  const meta = receitas.find(r => r.storage_path === storagePath || r.id === storagePath || r.atendimentoId === storagePath)
-  if (meta && meta.url) return meta.url
+  const meta = receitas.find(r => r.storage_path === storagePath || r.id === storagePath || r.atendimentoId === storagePath || r.atendimento_id === storagePath)
+  if (meta && (meta.pdf_url || meta.url)) return meta.pdf_url || meta.url
 
   return null
 }
