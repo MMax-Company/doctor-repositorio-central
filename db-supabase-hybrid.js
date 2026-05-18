@@ -613,6 +613,7 @@ module.exports = {
   // Receitas
   salvarReceita,
   salvarReceitaArquivo,
+  gerarSignedUrl,
   buscarReceitaPorId,
   listarReceitasPorAtendimento,
   atualizarStatusReceita,
@@ -705,4 +706,24 @@ async function salvarReceitaArquivo(atendimentoId, buffer, contentType = 'applic
   }
 
   return receitaMeta
+}
+
+// Gerar signed URL para um arquivo no storage (tempo em segundos)
+async function gerarSignedUrl(storagePath, expiresSeconds = 3600) {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.storage.from('receitas').createSignedUrl(storagePath, expiresSeconds)
+      if (!error && data && data.signedURL) return data.signedURL
+      if (!error && data && data.signedUrl) return data.signedUrl
+    } catch (e) {
+      console.error('⚠️ Erro ao gerar signed URL:', e.message)
+    }
+  }
+
+  // fallback: tentar obter URL público ou file:// do JSON
+  const receitas = readJSON('receitas.json')
+  const meta = receitas.find(r => r.storage_path === storagePath || r.id === storagePath || r.atendimentoId === storagePath)
+  if (meta && meta.url) return meta.url
+
+  return null
 }

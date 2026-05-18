@@ -473,7 +473,7 @@
     } catch(e) { showToast('Erro: ' + e.message, 'error'); }
   }
 
-  function verPDFReceita(id) { window.open('/api/receita/' + id + '/pdf', '_blank'); }
+  function verPDFReceita(id) { abrirSignedPdf(id); }
   
   function verMotivoRecusa(id) {
     const at = atendimentosData.find(a => a.id === id);

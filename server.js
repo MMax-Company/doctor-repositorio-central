@@ -1,3 +1,20 @@
+  
+  // Abrir PDF via signed URL (padrão) com fallback para /pdf
+  async function abrirSignedPdf(id) {
+    try {
+      const res = await fetch('/api/receita/' + id + '/signed', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) { showToast('Erro ao gerar link seguro', 'error'); return; }
+      const data = await res.json();
+      if (data && data.url) {
+        window.open(data.url, '_blank');
+      } else {
+        window.open('/api/receita/' + id + '/pdf', '_blank');
+      }
+    } catch (e) {
+      console.error(e);
+      window.open('/api/receita/' + id + '/pdf', '_blank');
+    }
+  }
 require('dotenv').config()
 
 const express = require('express')
@@ -1861,6 +1878,29 @@ app.post('/api/receita/:id/enviar-whatsapp', auth, async (req, res) => {
     res.json({ success: true, mensagem: 'Receita enviada por WhatsApp', enviado_em: new Date().toISOString() })
   } catch (e) {
     res.status(500).json({ error: 'Erro ao enviar receita por WhatsApp' })
+  }
+})
+
+// Gerar signed URL seguro para uma receita (padrão: 1 hora)
+app.get('/api/receita/:id/signed', auth, async (req, res) => {
+  try {
+    const id = req.params.id
+    const receita = await db.buscarReceitaPorId(id)
+    if (!receita) return res.status(404).json({ error: 'Receita não encontrada' })
+
+    // Preferir storage_path salvo
+    const storagePath = receita.storage_path || receita.storage_path_path || receita.storagePath || receita.storage_path
+
+    if (storagePath && typeof db.gerarSignedUrl === 'function') {
+      const url = await db.gerarSignedUrl(storagePath, 3600)
+      if (url) return res.json({ url })
+    }
+
+    // Fallback para gerar PDF on-the-fly
+    return res.json({ url: `${BASE_URL}/api/receita/${id}/pdf` })
+  } catch (e) {
+    console.error('❌ Erro ao gerar signed URL:', e.message)
+    res.status(500).json({ error: 'Erro ao gerar signed URL' })
   }
 })
 
