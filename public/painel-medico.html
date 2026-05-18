@@ -362,6 +362,7 @@
         html += '<button class="btn btn-warning" onclick="atenderPaciente(\'' + a.id + '\')">ATENDER</button>';
       } else if (tipo === 'atendimento') {
         html += '<button class="btn btn-primary" onclick="abrirDrawer(\'' + a.id + '\')">PRONTUÁRIO</button>';
+        html += '<button class="btn btn-primary btn-sm" style="background:#10b981;margin-left:6px;" onclick="emitirReceita(\'' + a.id + '\')">EMITIR RECEITA</button>';
       } else if (tipo === 'receita') {
         if (a.status !== 'RECUSADO') {
           html += '<button class="btn btn-outline btn-sm" onclick="reenviarReceita(\'' + a.id + '\')"><i class="fas fa-redo-alt"></i> REENVIAR</button>';
@@ -471,6 +472,37 @@
       if (res.ok) showToast('✅ Receita reenviada!', 'success');
       else showToast('Erro ao reenviar', 'error');
     } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+  }
+
+  async function emitirReceita(id) {
+    try {
+      showToast('🔄 Emitindo receita...', 'warning');
+      const res = await fetch('/api/receita/' + id + '/emitir', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        console.error(data);
+        showToast('Erro ao emitir receita', 'error');
+        return;
+      }
+      if (data && data.receita && data.receita.url) {
+        window.open(data.receita.url, '_blank');
+      } else if (data && data.url) {
+        window.open(data.url, '_blank');
+      } else if (data && data.receita) {
+        // older shape
+        window.open(data.receita.url || ('/api/receita/' + id + '/pdf'), '_blank');
+      } else {
+        window.open('/api/receita/' + id + '/pdf', '_blank');
+      }
+      showToast('✅ Receita emitida', 'success');
+      carregarDados();
+    } catch (e) {
+      console.error(e);
+      showToast('Erro ao emitir receita', 'error');
+    }
   }
 
   function verPDFReceita(id) { abrirSignedPdf(id); }
